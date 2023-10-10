@@ -3,12 +3,13 @@
 Agith is a tracing tool mainly based on eBPF technology, which can trace the impact of changes from the change command, including files, processes, and network sockets.
 
 Features:
+
 - An open-source tracing tool that capture the impact of changes from the command.
 - Efficient, easy to use, and extensible
 - Monitoring changes of files, processes, and network sockets.
-    - File: creation, modification, and deletion
-    - Process: creation, execution, and exit
-    - Network socket: creation, connection, and closure
+  - File: creation, modification, and deletion
+  - Process: creation, execution, and exit
+  - Network socket: creation, connection, and closure
 
 ## Background
 
@@ -20,7 +21,7 @@ Without proper monitoring and analysis tools like Agith, even minor changes to a
 
 ## Directory Structure
 
-``` shell
+```shell
 .
 ├── build.sh                # program building script
 ├── config                  # configuration files
@@ -49,7 +50,6 @@ Linux Kernel version at least: 4.19.90
 
 Recommend kernel: Linux 4.19.90-2003.4.0.0036.oe1.x86_64
 
-
 ### Requirement
 
 ```
@@ -65,20 +65,21 @@ jsoncpp-devel == 1.9.3-2.oe1
 ## Usage
 
 1. Install all requirements, symbollink libbpf to the project path
-2. Compile program: run `./build.sh compile` 
+2. Compile program: run `./build.sh compile`
 3. Run test case to check program availability: run `./build.sh test`
 
 ## Contributing
+
 Feel free to dive in! Open an issue or submit PRs.
 
 ## Acknowledge
 
-|Author|Email|
-|---|---|
-|Shangguan Dongdong|shangguandongdong1@huawei.com|
-|Liu Chang|chang-liu22@mails.tsinghua.edu.cn|
-|Li Haozhe|hzli@stu.pku.edu.cn|
-|Gao Yurui|gaoyr19@mails.tsinghua.edu.cn|
+| Author             | Email                             |
+| ------------------ | --------------------------------- |
+| Shangguan Dongdong | shangguandongdong1@huawei.com     |
+| Liu Chang          | chang-liu22@mails.tsinghua.edu.cn |
+| Li Haozhe          | hzli@stu.pku.edu.cn               |
+| Gao Yurui          | gaoyr19@mails.tsinghua.edu.cn     |
 
 ## License
 
