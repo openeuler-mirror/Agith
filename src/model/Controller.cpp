@@ -31,6 +31,7 @@ Controller::Controller() :
     m_os_cpu = get_os_cpu_time();
     m_my_cpu = get_proc_cpu_time(getpid());
     m_pid_file_fd = lock();
+    p_perf_buffer = NULL;
 }
 
 std::shared_ptr<Controller> Controller::get_controller() {
