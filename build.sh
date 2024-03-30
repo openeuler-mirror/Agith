@@ -61,10 +61,21 @@ function clean(){
     if [ -d $build_dir ];then
         rm -rf $build_dir
     fi    
-    
+}
+
+function check_vmlinux() {
+    cd $shell_dir/src/BPF
+    if [ -f "vmlinux.h" ]; then
+        cd $shell_dir
+        return 0
+    fi
+
+    yum install bpftool -y
+    bpftool btf dump file /sys/kernel/btf/vmlinux format c > vmlinux.h
 }
 
 function compile(){
+    check_vmlinux
     if [ ! -d $build_dir ];then
         mkdir -p $build_dir
     fi      

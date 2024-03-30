@@ -18,10 +18,7 @@ clean:
 	@rm -rf $(OUTPUT_DIR)
 
 $(TARGETS): %.o: %.c | $(OUTPUT_DIR)
-	@$(CLANG) -S $(CFLAGS) $(CINCLUDE) -D__TARGET_ARCH_x86 \
-	    -O2 -emit-llvm -c $<
-	@$(LLC) -march=bpf -filetype=obj -o $(OUTPUT_DIR)/$@ ${@:.o=.ll}
-	@rm ${@:.o=.ll}
+	@$(CLANG) -g -O2 -target bpf -D__TARGET_ARCH_x86 $(CFLAGS) $(CINCLUDE) -c $(filter %.c,$^) -o $(OUTPUT_DIR)/$@
 
 $(OUTPUT_DIR):
 	@mkdir $(OUTPUT_DIR)

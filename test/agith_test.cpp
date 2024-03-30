@@ -47,7 +47,7 @@ void AgithTest::TearDownTestCase() {
 void AgithTest::SetUp() {}
 
 void AgithTest::TearDown() {
-    Repository::get_repository()->set_output_signal(OUTPUT_PART);
+    Repository::get_repository()->set_signal(OUTPUT_USELESS);
 }
 
 TEST_F(AgithTest, mkdir) {
@@ -66,8 +66,6 @@ TEST_F(AgithTest, mkdir) {
         edge = item.second;
         if (edge->get_syscall_num(SYS_mkdir) > 0) {
             pnode = (ProcessNode*)edge->get_first();
-            printf(pnode->get_cmd());
-            printf("aaa\n");
             if (strcmp(pnode->get_cmd(), "/usr/bin/mkdir test") == 0) {
                 condition = true;
                 break;
@@ -245,6 +243,8 @@ TEST_F(AgithTest, copy) {
         if (edge->get_syscall_num(SYS_openat) > 0 && edge->get_syscall_num(SYS_read) > 0) {
             pnode = (ProcessNode*)edge->get_first();
             fnode = (FileNode*)edge->get_second();
+            printf("fnode:%s\n", fnode->get_pathname());
+            printf("pnode:%s\n", pnode->get_cmd());
             if (strcmp(fnode->get_pathname(), file_path1) == 0 &&
                 strcmp(pnode->get_cmd(), "/usr/bin/cp test.txt test.txt.bak") == 0) {
                 condition1 = true;
@@ -254,6 +254,8 @@ TEST_F(AgithTest, copy) {
         if (edge->get_syscall_num(SYS_write) > 0 && edge->get_syscall_num(SYS_openat) > 0) {
             pnode = (ProcessNode*)edge->get_first();
             fnode = (FileNode*)edge->get_second();
+            printf("fnode:%s\n", fnode->get_pathname());
+            printf("pnode:%s\n", pnode->get_cmd());            
             if (strcmp(fnode->get_pathname(), file_path2) == 0 &&
                 strcmp(pnode->get_cmd(), "/usr/bin/cp test.txt test.txt.bak") == 0) {
                 condition2 = true;

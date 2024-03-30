@@ -502,7 +502,6 @@ int Repository::output_all() {
 
     char buf[BUF_SIZE];
     char path[PATH_MAX];
-    struct Trace* trace;
 
     // 控制输出速率，防止CPU超标
     while (output_part(m_config["max_output_trace"].asUInt()) != 0) {

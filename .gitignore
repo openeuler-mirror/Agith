@@ -4,3 +4,4 @@ build/*
 rpmbuild
 *.tar.gz
 temp
+.vscode

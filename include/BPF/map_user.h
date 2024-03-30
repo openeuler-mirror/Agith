@@ -19,12 +19,6 @@
 #define PERF_EVENT_MAP "perf_event_map"
 #define REPEAT_TRACE_MAP "repeat_trace_map"
 
-struct bpf_map_data {
-    int fd;
-    char* name;
-    struct bpf_map_def def;
-};
-
 struct Trace {
     unsigned int tgid;
     unsigned int action;  // system call number

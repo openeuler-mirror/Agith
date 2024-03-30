@@ -161,11 +161,6 @@ int Controller::init(Json::Value config) {
         return ret;
     }
 
-    if (m_config["clean_kprobe"].asBool()) {
-        log_info("clean all kprobe");
-        m_bpf_loader.clean_kprobe();
-    }
-
     m_config["cpu_num"] = sysconf(_SC_NPROCESSORS_ONLN);
 
     log_info("initialize dictionary...");
@@ -389,7 +384,7 @@ int Controller::check_cpu_mem() {
 int Controller::lock() {
     int ret;
     struct flock lock;    
-    int buf_size = 10;
+    int buf_size = LONG_STR_SIZE;
     char buf[buf_size];
 
     m_pid_file_fd = open(m_pid_file_path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
@@ -417,7 +412,7 @@ int Controller::lock() {
 
 int Controller::unlock() {
     struct flock lock;
-    int buf_size = 10;
+    int buf_size = LONG_STR_SIZE;
     int ret;
 
     if (m_pid_file_fd < 0) {

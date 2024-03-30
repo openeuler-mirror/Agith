@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 
 project(Agith_Test)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++11 -Wall -Wno-delete-non-virtual-dtor -Wno-pointer-arith -DDEBUG")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++11 -Wall -Wno-delete-non-virtual-dtor -Wno-pointer-arith -Wno-format-truncation -DDEBUG")
 
 set(Agith_VERSION_MAJOR 1)
 set(Agith_VERSION_MINOR 0)
