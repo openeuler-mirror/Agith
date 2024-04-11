@@ -1,4 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
+SET(CMAKE_C_COMPILER clang)
+SET(CMAKE_CXX_COMPILER clang++)
 project(Agith)
 set(CMAKE_CXX_STANDARD 14)
 
@@ -11,7 +13,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall -Wno-delete-non-virtual-dtor -W
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CmakeScripts)
 
 
-find_package(Threads REQUIRED)
 find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(JSONCPP jsoncpp)
@@ -33,9 +34,10 @@ endif ()
 include_directories(include)
 
 
-file(COPY config/agith.config DESTINATION ${CMAKE_BINARY_DIR}/config)
-file(COPY config/syscall_64.tbl DESTINATION ${CMAKE_BINARY_DIR}/config)
+file(COPY config/agith.config DESTINATION ${CMAKE_BINARY_DIR}/prod/config)
+file(COPY config/syscall_64.tbl DESTINATION ${CMAKE_BINARY_DIR}/prod/config)
 
 
 add_subdirectory(src)
+enable_testing()
 add_subdirectory(test)
