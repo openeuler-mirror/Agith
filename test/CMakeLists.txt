@@ -4,6 +4,7 @@ find_package(GTest REQUIRED)
 
 aux_source_directory(. TEST_CPP)
 add_executable(agith_test ${TEST_CPP})
+add_dependencies(agith_test BPF)
 target_link_libraries(agith_test model)
 target_link_libraries(agith_test graph)
 target_link_libraries(agith_test test_tool)
