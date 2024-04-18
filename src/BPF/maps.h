@@ -28,7 +28,9 @@ struct trace {
 struct str_buf {
     char buf[STR_BUF_SIZE];
 };
-
+struct dentry_data {
+    struct dentry* dentry_addr;
+};
 struct {
     __uint(type, BPF_MAP_TYPE_ARRAY);
     __uint(max_entries, CPU_NUM * ENTRY_NUM_PER_CPU);
@@ -99,4 +101,10 @@ struct {
     __type(value, unsigned int);
 } perf_event_map SEC(".maps");
 
+struct{
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(max_entries, CPU_NUM * ENTRY_NUM_PER_CPU);
+    __type(key, int);
+    __type(value, struct dentry*);
+} dentry_map SEC(".maps");
 #endif
