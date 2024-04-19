@@ -343,7 +343,6 @@ int trace_enter_mkdir(struct sys_enter_mkdir_args* ctx) {
 //监控vfs_mkdir，在进入时获取dentry的地址，在函数结束时获取产生的inode
 SEC("kprobe/vfs_mkdir")
 int kprobe_enter_vfs_mkdir(struct pt_regs* ctx) {
-    bpf_printk("kprobe/vfs_mkdir\n");
     u64 tgid_pid;
     u32 pid, tgid;
     struct dentry* dentry;
@@ -709,7 +708,6 @@ int trace_enter_openat(struct sys_enter_openat_args* ctx) {
     if (ret) {
         return 0;
     }
-    bpf_printk("filename:%s",ctx->filename);
     trace->tgid = tgid;
     trace->action = ctx->syscall_nr;
     trace->ts = bpf_ktime_get_ns();
