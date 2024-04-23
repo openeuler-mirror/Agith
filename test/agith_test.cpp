@@ -243,8 +243,8 @@ TEST_F(AgithTest, copy) {
         if (edge->get_syscall_num(SYS_openat) > 0 && edge->get_syscall_num(SYS_copy_file_range) > 0) {
             pnode = (ProcessNode*)edge->get_first();
             fnode = (FileNode*)edge->get_second();
-            printf("fnode:%s\n", fnode->get_pathname());
-            printf("pnode:%s\n", pnode->get_cmd());
+            printf("file_path: %s, fnode:%s\n",file_path1, fnode->get_pathname());
+
             if (strcmp(fnode->get_pathname(), file_path1) == 0 &&
                 strcmp(pnode->get_cmd(), "/usr/bin/cp test.txt test.txt.bak") == 0) {
                 condition1 = true;
@@ -254,7 +254,7 @@ TEST_F(AgithTest, copy) {
             pnode = (ProcessNode*)edge->get_first();
             fnode = (FileNode*)edge->get_second();
             printf("fnode:%s\n", fnode->get_pathname());
-            printf("pnode:%s\n", pnode->get_cmd());            
+            // printf("pnode:%s\n", pnode->get_cmd());            
             if (strcmp(fnode->get_pathname(), file_path2) == 0 &&
                 strcmp(pnode->get_cmd(), "/usr/bin/cp test.txt test.txt.bak") == 0) {
                 condition2 = true;
