@@ -421,9 +421,11 @@ int kprobe_enter_done_path_create(struct pt_regs* ctx) {
     if (trace == NULL) return 0;
 
     dentry = (struct dentry*)PT_REGS_PARM2(ctx);
-    bpf_read(inode, dentry->d_inode);
-    bpf_read(i_ino, inode->i_ino);
-    trace->obj.file.i_ino = i_ino;
+    trace->obj.file.i_ino = BPF_CORE_READ(dentry, d_inode, i_ino);
+
+    // bpf_read(inode, dentry->d_inode);
+    // bpf_read(i_ino, inode->i_ino);
+    // trace->obj.file.i_ino = i_ino;
     
     return 0;
 }

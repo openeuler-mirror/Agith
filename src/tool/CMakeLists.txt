@@ -1,8 +1,3 @@
 aux_source_directory(. tool_cpp)
 add_library(tool ${tool_cpp})
-target_link_libraries(tool elf)
 target_link_libraries(tool bpf)
-find_library(LIBRT rt) 
-if(LIBRT)
-   target_link_libraries(tool ${LIBRT})
-endif()
