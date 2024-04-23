@@ -343,7 +343,6 @@ int trace_enter_mkdir(struct sys_enter_mkdir_args* ctx) {
 //监控vfs_mkdir，在进入时获取dentry的地址，在函数结束时获取产生的inode
 SEC("kprobe/vfs_mkdir")
 int kprobe_enter_vfs_mkdir(struct pt_regs* ctx) {
-    bpf_printk("kprobe/vfs_mkdir\n");
     u64 tgid_pid;
     u32 pid, tgid;
     struct dentry* dentry;
@@ -709,7 +708,6 @@ int trace_enter_openat(struct sys_enter_openat_args* ctx) {
     if (ret) {
         return 0;
     }
-    bpf_printk("filename:%s",ctx->filename);
     trace->tgid = tgid;
     trace->action = ctx->syscall_nr;
     trace->ts = bpf_ktime_get_ns();
@@ -906,3 +904,42 @@ int trace_enter_close(struct sys_enter_close_args* ctx) {
 // int trace_exit_close(struct sys_exit_args* ctx) {
 //     return default_set_ret(ctx);
 // }
+SEC("tracepoint/syscalls/sys_enter_copy_file_range")
+int trace_enter_copy_file_range(struct sys_enter_copy_file_range_args* ctx){
+    u64 tgid_pid;
+    u32 tgid, pid;
+    u32 trace_ptr;
+    unsigned long i_ino_in;
+    unsigned long i_ino_out;
+    struct trace* trace;
+    int ret;
+    tgid_pid = bpf_get_current_pid_tgid();
+    tgid = tgid_pid >> 32;
+    pid = (u32)tgid_pid;
+    
+    if (!in_targets(&tgid_target_map, tgid)) return 0;
+    ret = create_trace(&trace, &trace_ptr);
+    if (ret) {
+        bpf_printk("[sys_enter_copy_file_range] get trace map failed");
+        return 0;
+    }
+
+    trace->tgid = tgid;
+    trace->action = ctx->syscall_nr;
+    trace->ts = bpf_ktime_get_ns();
+    trace->obj.ops_copy_file_range.fd_in = ctx->fd_in;
+    trace->obj.ops_copy_file_range.fd_out = ctx->fd_out;
+    trace->obj.ops_copy_file_range.i_ino_in = get_inode_num(ctx->fd_in);
+    trace->obj.ops_copy_file_range.i_ino_out = get_inode_num(ctx->fd_out);
+    // i_ino_in = get_inode_num(ctx->fd_in);
+    // i_ino_out = get_inode_num(ctx->fd_out);
+
+    set_trace_map_key(pid, ctx->syscall_nr, trace_ptr);
+    // bpf_printk("inode_in:%d",i_ino_in);
+    // bpf_printk("inode_out:%d",i_ino_out);
+    return 0;
+}
+SEC("tracepoint/syscalls/sys_exit_copy_file_range")
+int trace_exit_copy_file_range(struct sys_exit_args* ctx){
+    return default_set_ret(ctx);
+}

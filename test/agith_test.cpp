@@ -240,7 +240,7 @@ TEST_F(AgithTest, copy) {
     usleep(WAIT_TIME);
     for (auto item : Edge::edges) {
         edge = item.second;
-        if (edge->get_syscall_num(SYS_openat) > 0 && edge->get_syscall_num(SYS_read) > 0) {
+        if (edge->get_syscall_num(SYS_openat) > 0 && edge->get_syscall_num(SYS_copy_file_range) > 0) {
             pnode = (ProcessNode*)edge->get_first();
             fnode = (FileNode*)edge->get_second();
             printf("fnode:%s\n", fnode->get_pathname());
@@ -250,8 +250,7 @@ TEST_F(AgithTest, copy) {
                 condition1 = true;
             }
         }
-
-        if (edge->get_syscall_num(SYS_write) > 0 && edge->get_syscall_num(SYS_openat) > 0) {
+        if (edge->get_syscall_num(SYS_copy_file_range) > 0 && edge->get_syscall_num(SYS_openat) > 0) {
             pnode = (ProcessNode*)edge->get_first();
             fnode = (FileNode*)edge->get_second();
             printf("fnode:%s\n", fnode->get_pathname());
