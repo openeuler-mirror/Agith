@@ -2,7 +2,6 @@ set -e
 
 shell_dir=$(dirname $(readlink -f "$0"))
 build_dir=$shell_dir/build
-test_dir=$shell_dir/build/test
 DEP_FILES_DIR=${shell_dir}
 
 function prepare_dep()
@@ -80,20 +79,11 @@ function compile(){
         mkdir -p $build_dir
     fi      
     cd $build_dir
-    cmake ../src
+    cmake ..
     make -j
 }
 
-function test(){
-    if [ ! -d $test_dir ];then
-        mkdir -p $test_dir
-    fi      
-    cd $test_dir
-    cmake ../../test
-    make -j
-}
-
-function build_vlinux()
+function build_vmlinux()
 {
     # build vmlinux 
     if [ -f /sys/fs/bpf/vmlinux ]; then
@@ -159,28 +149,6 @@ function post_task()
     /usr/bin/python3 $shell_dir/tool/neo4j_loader.py   
 }
 
-function build_cloud_agent() 
-{
-    cd $build_dir
-    if [ -d Agith ];then
-        rm -rf Agith
-        rm -rf Agith.tar.gz
-        rm -rf Agith.json
-        rm -rf files.json
-        rm -rf clear.json        
-    fi
-    mkdir -p Agith/{bin,conf,lib}
-    cp agith Agith/bin/
-    cp BPF/*.o Agith/lib/
-    cp config/* Agith/conf/
-    python ../tool/cloud_agent.py $build_dir/Agith
-    tar -czf Agith.tar.gz Agith Agith.json clear.json files.json
-
-    # rm -rf Agith
-    # rm -rf Agith.json
-    # rm -rf files.json
-    # rm -rf clear.json    
-}
 
 
 if [ $# -eq 0 ]
@@ -197,9 +165,6 @@ case $1 in
     clean)
         clean
         ;;
-    test)
-        test
-        ;;
     compile)
         compile
         ;;
@@ -208,9 +173,6 @@ case $1 in
         ;;
     build_rpm)
         build_rpm
-        ;;
-    build_cloud_agent)
-        build_cloud_agent
         ;;
     post_task)
         post_task

@@ -85,7 +85,7 @@ BPF 文件夹对应[系统架构](#4-系统架构)的 eBPF 模块。各个文件
 |socket.c|与网络相关的探针程序|
 |syscall_args.h|系统调用的参数，参考/sys/kernel/debug/tracing/events/syscalls 中各个系统调用的 format 文件|
 |utils.h|通用函数，例如申请 trace 空间，默认返回函数，删除监控目标等操作|
-|vmlinux.h|集成内核头文件，与内核版本相关|
+|vmlinux.h|集成内核头文件，与内核版本相关。代码仓不提供该文件，在编译过程中由命令生成。|
 
 graph 是 repository 绘制图过程中需要的类。图包含两个要素 Edge（边）与 Node（节点）。其中 Node 是一个抽象类。根据不同的节点类型，派生了 FileNode、PipeNode、ProcessNode、SocketNode，分别表示文件节点、管道节点、进程节点、网络节点。
 
