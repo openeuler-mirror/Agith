@@ -28,9 +28,7 @@ struct trace {
 struct str_buf {
     char buf[STR_BUF_SIZE];
 };
-struct dentry_data {
-    struct dentry* dentry_addr;
-};
+
 struct {
     __uint(type, BPF_MAP_TYPE_ARRAY);
     __uint(max_entries, CPU_NUM * ENTRY_NUM_PER_CPU);
