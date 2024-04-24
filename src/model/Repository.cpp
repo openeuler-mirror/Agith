@@ -56,8 +56,8 @@ void Repository::start() {
 
         clock_gettime(CLOCK_MONOTONIC, &now);
         if (now.tv_sec - last_time_output.tv_sec > 1 || now.tv_nsec - last_time_output.tv_nsec > 1e8 /*time, ns*/) {
-            last_time_output = now;
-            output_part(m_config["max_output_trace"].asUInt());
+                last_time_output = now;
+                output_part(m_config["max_output_trace"].asUInt());
         }
 
         if (m_signal & SWAP_MEMORY) {
@@ -284,8 +284,8 @@ int Repository::fill_graph(struct Trace* trace) {
                 log_warn("[copy_file_range] can't find fnode_out");
                 break;
             }
-            Edge::add_edge(pnode, fnode_in, SYS_copy_file_range);
-            Edge::add_edge(pnode, fnode_out, SYS_copy_file_range);
+            Edge::add_edge(pnode, fnode_in, SYS_read);
+            Edge::add_edge(pnode, fnode_out, SYS_write);
             break;
         }
         case SYS_renameat2: {
