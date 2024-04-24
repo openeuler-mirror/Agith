@@ -56,8 +56,8 @@ void Repository::start() {
 
         clock_gettime(CLOCK_MONOTONIC, &now);
         if (now.tv_sec - last_time_output.tv_sec > 1 || now.tv_nsec - last_time_output.tv_nsec > 1e8 /*time, ns*/) {
-                last_time_output = now;
-                output_part(m_config["max_output_trace"].asUInt());
+            last_time_output = now;
+            output_part(m_config["max_output_trace"].asUInt());
         }
 
         if (m_signal & SWAP_MEMORY) {
