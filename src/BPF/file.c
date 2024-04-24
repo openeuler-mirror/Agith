@@ -933,12 +933,7 @@ int trace_enter_copy_file_range(struct sys_enter_copy_file_range_args* ctx){
     trace->obj.ops_copy_file_range.fd_out = ctx->fd_out;
     trace->obj.ops_copy_file_range.i_ino_in = get_inode_num(ctx->fd_in);
     trace->obj.ops_copy_file_range.i_ino_out = get_inode_num(ctx->fd_out);
-    // i_ino_in = get_inode_num(ctx->fd_in);
-    // i_ino_out = get_inode_num(ctx->fd_out);
-
     set_trace_map_key(pid, ctx->syscall_nr, trace_ptr);
-    // bpf_printk("inode_in:%d",i_ino_in);
-    // bpf_printk("inode_out:%d",i_ino_out);
     return 0;
 }
 SEC("tracepoint/syscalls/sys_exit_copy_file_range")
