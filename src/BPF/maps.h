@@ -99,10 +99,4 @@ struct {
     __type(value, unsigned int);
 } perf_event_map SEC(".maps");
 
-struct{
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(max_entries, CPU_NUM * ENTRY_NUM_PER_CPU);
-    __type(key, int);
-    __type(value, struct dentry*);
-} dentry_map SEC(".maps");
 #endif
