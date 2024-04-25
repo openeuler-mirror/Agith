@@ -223,8 +223,7 @@ void handle_perf_event(void* ctx, int flag, void* event, __u32 data_size) {
 
 int Controller::init_perf_event() {
     m_perf_event_map_fd = m_bpf_loader.get_map_fd(PERF_EVENT_MAP);
-    m_perf_buf_opts.sample_cb = handle_perf_event;
-    p_perf_buffer = perf_buffer__new(m_perf_event_map_fd, 8, &m_perf_buf_opts);
+    p_perf_buffer = perf_buffer__new(m_perf_event_map_fd, 8, handle_perf_event, nullptr, nullptr, &m_perf_buf_opts);
 
     if (libbpf_get_error(p_perf_buffer)) {
         log_error("Failed to create perf buffer");
