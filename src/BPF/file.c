@@ -864,7 +864,7 @@ int trace_enter_close(struct sys_enter_close_args* ctx) {
 //     return default_set_ret(ctx);
 // }
 SEC("tracepoint/syscalls/sys_enter_copy_file_range")
-int trace_enter_copy_file_range(struct sys_enter_copy_file_range_args* ctx){
+int trace_enter_copy_file_range(struct sys_enter_copy_file_range_args* ctx) {
     u64 tgid_pid;
     u32 tgid, pid;
     u32 trace_ptr;
@@ -875,7 +875,7 @@ int trace_enter_copy_file_range(struct sys_enter_copy_file_range_args* ctx){
     tgid_pid = bpf_get_current_pid_tgid();
     tgid = tgid_pid >> 32;
     pid = (u32)tgid_pid;
-    
+
     if (!in_targets(&tgid_target_map, tgid)) return 0;
     ret = create_trace(&trace, &trace_ptr);
     if (ret) {
@@ -894,6 +894,6 @@ int trace_enter_copy_file_range(struct sys_enter_copy_file_range_args* ctx){
     return 0;
 }
 SEC("tracepoint/syscalls/sys_exit_copy_file_range")
-int trace_exit_copy_file_range(struct sys_exit_args* ctx){
+int trace_exit_copy_file_range(struct sys_exit_args* ctx) {
     return default_set_ret(ctx);
 }
