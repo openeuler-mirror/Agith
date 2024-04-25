@@ -21,6 +21,7 @@ union object {
         unsigned long i_ino;
         unsigned long dfd;
         unsigned long fd;
+        struct dentry* dentry;
     } file;
 
     struct socket_ops {

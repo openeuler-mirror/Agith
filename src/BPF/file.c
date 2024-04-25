@@ -345,70 +345,32 @@ SEC("kprobe/vfs_mkdir")
 int kprobe_enter_vfs_mkdir(struct pt_regs* ctx) {
     u64 tgid_pid;
     u32 pid, tgid;
-    struct dentry* dentry;
-    struct inode* inode;
     struct trace* trace;
-    u32 trace_ptr;
+    u32* trace_ptr;
+    u32 syscall_nr = 83;
+    struct dentry* dentry;
+
     tgid_pid = bpf_get_current_pid_tgid();
     tgid = tgid_pid >> 32;
     pid = (u32)tgid_pid;
 
-    if (!in_targets(&tgid_target_map, tgid)) {
-        bpf_printk("not in_target\n");
-        return 0;
-    }
+    trace_ptr = get_trace_map_key(pid, syscall_nr);
+    if (trace_ptr == NULL) return 0;
+    trace = bpf_map_lookup_elem(&trace_map, trace_ptr);
+    if (trace == NULL) return 0;
+
     dentry = (struct dentry*)PT_REGS_PARM2(ctx);
-    bpf_map_update_elem(&dentry_map, &tgid, &dentry, BPF_ANY);
+    trace->obj.file.dentry = dentry;
     return 0;
 }
 SEC("kretprobe/vfs_mkdir")
-int kprobe_exit_vfs_mkdir(struct pt_regs* ctx){
+int kprobe_exit_vfs_mkdir(struct pt_regs* ctx) {
     u64 tgid_pid;
     u32 pid, tgid;
     struct trace* trace;
     u32* trace_ptr;
     u32 syscall_nr = 83;
     struct dentry* dentry;
-    struct inode* inode;
-    u64 i_ino;
-
-    tgid_pid = bpf_get_current_pid_tgid();
-    tgid = tgid_pid >> 32;
-    pid = (u32)tgid_pid;
-
-    if (!in_targets(&tgid_target_map, tgid)) {
-        bpf_printk("not in_target\n");
-        return 0;
-    }
-    struct dentry** t = bpf_map_lookup_elem(&dentry_map, &tgid);
-    if (!t) {
-        bpf_printk("not found dentry\n");
-        return 0;
-    }
-    dentry = *t;
-
-    bpf_map_delete_elem(&dentry_map, &tgid);
-    trace_ptr = get_trace_map_key(pid, syscall_nr);
-    if (trace_ptr == NULL) return 0;
-    trace = bpf_map_lookup_elem(&trace_map, trace_ptr);
-    if (trace == NULL) return 0;
-
-    bpf_read(inode, dentry->d_inode);
-    bpf_read(i_ino, inode->i_ino);
-    trace->obj.file.i_ino = i_ino;
-    return 0;
-}
-// Only for mkdir(83), need to change implementation if necessary
-SEC("kprobe/done_path_create")
-int kprobe_enter_done_path_create(struct pt_regs* ctx) {
-    u64 tgid_pid;
-    u32 pid, tgid;
-    struct trace* trace;
-    u32* trace_ptr;
-    int ret;
-    u32 syscall_nr = 83;
-    struct dentry* dentry;
-    struct inode* inode;
     u64 i_ino;
 
     tgid_pid = bpf_get_current_pid_tgid();
@@ -420,13 +382,8 @@ int kprobe_enter_done_path_create(struct pt_regs* ctx) {
     trace = bpf_map_lookup_elem(&trace_map, trace_ptr);
     if (trace == NULL) return 0;
 
-    dentry = (struct dentry*)PT_REGS_PARM2(ctx);
+    dentry = (struct dentry*)trace->obj.file.dentry;
     trace->obj.file.i_ino = BPF_CORE_READ(dentry, d_inode, i_ino);
-
-    // bpf_read(inode, dentry->d_inode);
-    // bpf_read(i_ino, inode->i_ino);
-    // trace->obj.file.i_ino = i_ino;
-    
     return 0;
 }
 
@@ -749,7 +706,7 @@ int trace_exit_open(struct sys_exit_args* ctx) {
     }
     delete_trace_map_key(pid, ctx->syscall_nr);
 
-    return 0;    
+    return 0;
 }
 
 SEC("tracepoint/syscalls/sys_exit_openat")
@@ -782,7 +739,7 @@ int trace_exit_openat(struct sys_exit_args* ctx) {
     }
     delete_trace_map_key(pid, ctx->syscall_nr);
 
-    return 0;    
+    return 0;
 }
 
 // TODO: is dup also needed?
