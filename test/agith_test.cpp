@@ -250,7 +250,7 @@ TEST_F(AgithTest, copy) {
                 condition1 = true;
             }
         }
-        
+
         if (edge->get_syscall_num(SYS_write) > 0 && edge->get_syscall_num(SYS_openat) > 0) {
             pnode = (ProcessNode*)edge->get_first();
             fnode = (FileNode*)edge->get_second();
