@@ -346,7 +346,7 @@ int kprobe_enter_vfs_mkdir(struct pt_regs* ctx) {
     u64 tgid_pid;
     u32 pid, tgid;
     struct trace* trace;
-    u32 *trace_ptr;
+    u32* trace_ptr;
     u32 syscall_nr = 83;
     struct dentry* dentry;
 
@@ -354,9 +354,9 @@ int kprobe_enter_vfs_mkdir(struct pt_regs* ctx) {
     tgid = tgid_pid >> 32;
     pid = (u32)tgid_pid;
 
-    trace_ptr = get_trace_map_key(pid,syscall_nr);
+    trace_ptr = get_trace_map_key(pid, syscall_nr);
     if (trace_ptr == NULL) return 0;
-    trace = bpf_map_lookup_elem(&trace_map,trace_ptr);
+    trace = bpf_map_lookup_elem(&trace_map, trace_ptr);
     if (trace == NULL) return 0;
 
     dentry = (struct dentry*)PT_REGS_PARM2(ctx);
@@ -364,7 +364,7 @@ int kprobe_enter_vfs_mkdir(struct pt_regs* ctx) {
     return 0;
 }
 SEC("kretprobe/vfs_mkdir")
-int kprobe_exit_vfs_mkdir(struct pt_regs* ctx){
+int kprobe_exit_vfs_mkdir(struct pt_regs* ctx) {
     u64 tgid_pid;
     u32 pid, tgid;
     struct trace* trace;
@@ -375,13 +375,13 @@ int kprobe_exit_vfs_mkdir(struct pt_regs* ctx){
 
     tgid_pid = bpf_get_current_pid_tgid();
     tgid = tgid_pid >> 32;
-    pid = (u32)tgid_pid; 
+    pid = (u32)tgid_pid;
 
     trace_ptr = get_trace_map_key(pid, syscall_nr);
     if (trace_ptr == NULL) return 0;
     trace = bpf_map_lookup_elem(&trace_map, trace_ptr);
     if (trace == NULL) return 0;
-    
+
     dentry = (struct dentry*)trace->obj.file.dentry;
     trace->obj.file.i_ino = BPF_CORE_READ(dentry, d_inode, i_ino);
     return 0;
@@ -706,7 +706,7 @@ int trace_exit_open(struct sys_exit_args* ctx) {
     }
     delete_trace_map_key(pid, ctx->syscall_nr);
 
-    return 0;    
+    return 0;
 }
 
 SEC("tracepoint/syscalls/sys_exit_openat")
@@ -739,7 +739,7 @@ int trace_exit_openat(struct sys_exit_args* ctx) {
     }
     delete_trace_map_key(pid, ctx->syscall_nr);
 
-    return 0;    
+    return 0;
 }
 
 // TODO: is dup also needed?
