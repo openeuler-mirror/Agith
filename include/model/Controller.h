@@ -53,7 +53,6 @@ private:
 
     int m_perf_event_map_fd;
     struct perf_buffer* p_perf_buffer;
-    struct perf_buffer_opts m_perf_buf_opts;
 
     unsigned long m_os_cpu;
     unsigned long m_my_cpu;
