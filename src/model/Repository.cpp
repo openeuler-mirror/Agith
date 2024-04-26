@@ -249,6 +249,45 @@ int Repository::fill_graph(struct Trace* trace) {
             Edge::add_edge(pnode, fnode, SYS_openat);
             break;
         }
+        case SYS_copy_file_range: {
+            if (trace->ret < 0) break;
+            unsigned long i_ino_in = trace->obj.ops_copy_file_range.i_ino_in;
+            int fd_in = trace->obj.ops_copy_file_range.fd_in;
+            unsigned long i_ino_out = trace->obj.ops_copy_file_range.i_ino_out;
+            int fd_out = trace->obj.ops_copy_file_range.fd_out;
+            FileNode* fnode_in;
+            FileNode* fnode_out;
+            if (FileNode::have(i_ino_in)) {
+                fnode_in = FileNode::file_nodes[i_ino_in];
+            } else {
+                fnode_in = (FileNode*)pnode->add_fd_from_proc(fd_in);
+                if (fnode_in == NULL) {
+                    fnode_in = new FileNode(i_ino_in, "null");
+                    FileNode::file_nodes[i_ino_in] = fnode_in;
+                    pnode->add_fd(fd_in, fnode_in);
+                }
+            }
+            if (fnode_in == NULL) {
+                log_warn("[copy_file_range] can't find fnode_in");
+                break;
+            }
+            if (FileNode::have(i_ino_out)) {
+                fnode_out = FileNode::file_nodes[i_ino_out];
+            } else {
+                fnode_out = (FileNode*)pnode->add_fd_from_proc(fd_out);
+                if (fnode_out == NULL) {
+                    fnode_out = new FileNode(i_ino_out, "null");
+                    FileNode::file_nodes[i_ino_out] = fnode_out;
+                }
+            }
+            if (fnode_out == NULL) {
+                log_warn("[copy_file_range] can't find fnode_out");
+                break;
+            }
+            Edge::add_edge(pnode, fnode_in, SYS_read);
+            Edge::add_edge(pnode, fnode_out, SYS_write);
+            break;
+        }
         case SYS_renameat2: {
             if (trace->ret < 0) break;
             unsigned long old_i_ino = trace->obj.ops_rename.old_i_ino;

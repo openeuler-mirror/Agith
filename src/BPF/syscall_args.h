@@ -93,6 +93,18 @@ struct sys_enter_dup2_args {
     unsigned long newfd;
 };
 
+struct sys_enter_copy_file_range_args
+{
+    unsigned long long unused;
+    long syscall_nr;
+    unsigned long fd_in;
+    loff_t * off_in;
+    unsigned long fd_out;
+    loff_t * off_out;
+    unsigned long len;
+    unsigned long flags;
+};
+
 struct sys_enter_fcntl_args {
     unsigned long long unused;
     long syscall_nr;
