@@ -86,6 +86,7 @@ int Consumer::fill_trace(struct Trace* trace, int* index) {
         case SYS_recvfrom:
         case SYS_sendto:
         case SYS_utimensat:
+        case SYS_writev:
             // 不要对返回值判断，即使data为null也要添加，否则会引发异常
             bpf_map_lookup_elem(m_str1_map_fd, index, data);
             trace->str_data.push_back(data);

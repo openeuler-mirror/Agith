@@ -17,6 +17,7 @@
 #include "graph/ProcessNode.h"
 #include "graph/SocketNode.h"
 #include "graph/PipeNode.h"
+#include "graph/ServiceNode.h"
 #include "tool/utils.h"
 
 #define BUF_SIZE 40960
@@ -107,6 +108,7 @@ int Repository::fill_graph(struct Trace* trace) {
     ProcessNode* pnode;
     FileNode* fnode;
     SocketNode* socknode;
+    ServiceNode* snode;
     struct sockaddr_ipv4* addr;
     const char* filename = NULL;
     const char* data = NULL;
@@ -145,6 +147,19 @@ int Repository::fill_graph(struct Trace* trace) {
             if (trace->ret == -1) break;
             std::string name;
             name = trace->str_data[0];
+            if (strcmp(name.c_str(), "/usr/bin/systemctl") == 0) {
+                const char* operation = trace->str_data[1].c_str();
+                const char* serviceName = trace->str_data[2].c_str();
+                if (ServiceNode::have(serviceName)) {
+                    snode = ServiceNode::service_nodes[serviceName];
+                } else {
+                    snode = new ServiceNode(serviceName);
+                    ServiceNode::service_nodes[serviceName] = snode;
+                }
+                m_temp_service_map[pnode] = snode;
+                Edge::add_edge(pnode, snode, trace->action, operation);
+            }
+
             if (trace->str_data[1].size() != 0) {
                 name += " ";
                 name += trace->str_data[1];
@@ -358,6 +373,24 @@ int Repository::fill_graph(struct Trace* trace) {
             Edge::add_edge(socknode, pnode, SYS_recvfrom, data);
             break;
         }
+        case SYS_writev: {
+            if (trace->ret == -1) break;
+            std::string str = trace->str_data[0];
+            if (str.find("Failed to") == 0 && m_temp_service_map.find(pnode) != m_temp_service_map.end()) {
+                log_error("SYS_writev start delete node");
+                snode = (ServiceNode*)m_temp_service_map[pnode];
+                if (Edge::have(pnode, snode)) {
+                    std::pair<Node*, Node*> node_pair = std::make_pair(pnode, snode);
+                    Edge* edge = Edge::edges[node_pair];
+                    pnode->del_edge(edge);
+                    snode->del_edge(edge);
+                    Edge::edges.erase(node_pair);
+                }
+                ServiceNode::remove_node(snode->get_service_name());
+                m_temp_service_map.erase(pnode);
+            }
+            break;
+        }
     }
     return 0;
 }
@@ -502,7 +535,7 @@ int Repository::output_part(unsigned int max_output_num) {
         m_trace_file << buf << std::endl;
         delete trace;
         m_trace_repo.pop_front();
-        output_num += 1;    
+        output_num += 1;
     }
 
     // 让Monitor先处理完缓存任务。因为之后将释放部分节点与边，防止访问非法地址
@@ -566,6 +599,10 @@ int Repository::output_all() {
         pipe_node.second->to_cypher(buf, BUF_SIZE);
         output_node(pipe_node.second, buf);
     }
+    for (auto service_node : ServiceNode::service_nodes) {
+        service_node.second->to_cypher(buf, BUF_SIZE);
+        output_node(service_node.second, buf);
+    }
 
     for (auto edge : Edge::edges) {
         output_edge(edge.second);
@@ -576,7 +613,7 @@ int Repository::output_all() {
         m_cypher_file_bak[i]->close();
         delete m_cypher_file[i];
         delete m_cypher_file_bak[i];
-        snprintf(path, PATH_MAX, "%s.bak", m_cypher_file_path[i].c_str());        
+        snprintf(path, PATH_MAX, "%s.bak", m_cypher_file_path[i].c_str());
         snprintf(buf, BUF_SIZE, "cat %s >> %s", path, m_cypher_file_path[i].c_str());
 
         if (system(buf)) {
@@ -585,7 +622,7 @@ int Repository::output_all() {
 
         if (remove(path)) {
             log_warn("fail to delete cypher backup file %s", path);
-        }        
+        }
     }
 
     m_cypher_file.clear();
@@ -623,7 +660,7 @@ int Repository::output_edge(Edge* edge) {
             continue;
         }
         *m_cypher_file_bak[*it] << buf << std::endl;
-    }    
+    }
     return 0;
 }
 

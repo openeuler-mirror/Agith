@@ -897,3 +897,39 @@ SEC("tracepoint/syscalls/sys_exit_copy_file_range")
 int trace_exit_copy_file_range(struct sys_exit_args* ctx) {
     return default_set_ret(ctx);
 }
+
+SEC("tracepoint/syscalls/sys_enter_writev")
+int trace_enter_writev(struct sys_enter_writev_args* ctx) {
+    u64 tgid_pid;
+    u32 tgid, pid;
+    u32 trace_ptr;
+    struct trace* trace;
+    int ret;
+
+    tgid_pid = bpf_get_current_pid_tgid();
+    tgid = tgid_pid >> 32;
+    pid = (u32)tgid_pid;
+
+    if (!in_targets(&tgid_target_map, tgid)) return 0;
+    ret = create_trace(&trace, &trace_ptr);
+    if (ret) {
+        bpf_printk("[sys_enter_writev] get trace map failed");
+        return 0;
+    }
+
+    void* iovbase;
+    bpf_read(iovbase, ctx->vec->iov_base);
+    char msg[20];
+    bpf_probe_read_str(msg, sizeof(msg), iovbase);
+    set_str1(trace_ptr, msg);
+    trace->tgid = tgid;
+    trace->action = ctx->syscall_nr;
+    trace->ts = bpf_ktime_get_ns();
+    set_trace_map_key(pid, ctx->syscall_nr, trace_ptr);
+    return 0;
+}
+
+SEC("tracepoint/syscalls/sys_exit_writev")
+int trace_exit_writev(struct sys_exit_args* ctx) {
+    return default_set_ret(ctx);
+}

@@ -15,9 +15,10 @@ public:
     static log4cplus::Logger m_log;
     static std::set<unsigned int> g_risk_syscalls;
 
-    Edge(Node* first, Node* second);   
+    Edge(Node* first, Node* second);
     int add_syscall(int syscall);
     int add_msg(const char* msg);
+    const char* get_msg();
     // 计算风险等级并返回风险等级
     int set_risk_level();
     int get_syscall_num(int syscall_id);
