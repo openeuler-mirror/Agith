@@ -147,6 +147,7 @@ int Repository::fill_graph(struct Trace* trace) {
             if (trace->ret == -1) break;
             std::string name;
             name = trace->str_data[0];
+            // 检测systemd命令 
             if (strcmp(name.c_str(), "/usr/bin/systemctl") == 0) {
                 const char* operation = trace->str_data[1].c_str();
                 const char* serviceName = trace->str_data[2].c_str();
@@ -376,8 +377,8 @@ int Repository::fill_graph(struct Trace* trace) {
         case SYS_writev: {
             if (trace->ret == -1) break;
             std::string str = trace->str_data[0];
+
             if (str.find("Failed to") == 0 && m_temp_service_map.find(pnode) != m_temp_service_map.end()) {
-                log_error("SYS_writev start delete node");
                 snode = (ServiceNode*)m_temp_service_map[pnode];
                 if (Edge::have(pnode, snode)) {
                     std::pair<Node*, Node*> node_pair = std::make_pair(pnode, snode);

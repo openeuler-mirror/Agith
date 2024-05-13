@@ -72,10 +72,6 @@ union object {
         unsigned long fd_out;
 
     } ops_copy_file_range;
-
-    struct writev_ops {
-        char buf[20];
-    } ops_writev;
 };
 
 struct pid_syscall_key {
