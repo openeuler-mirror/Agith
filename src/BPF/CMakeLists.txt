@@ -4,6 +4,8 @@ list(APPEND BPF_SOURCES file.c)
 list(APPEND BPF_SOURCES map.c)
 list(APPEND BPF_SOURCES process.c)
 list(APPEND BPF_SOURCES socket.c)
+list(APPEND BPF_SOURCES service.c)
+
 set(BPF_SOURCES ${BPF_SOURCES} PARENT_SCOPE)
 
 foreach(BPF_SOURCE ${BPF_SOURCES})

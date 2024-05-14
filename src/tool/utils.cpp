@@ -11,6 +11,7 @@
 #include "graph/Edge.h"
 #include "graph/ProcessNode.h"
 #include "graph/PipeNode.h"
+#include "graph/ServiceNode.h"
 
 
 const char* help_info =
@@ -218,6 +219,11 @@ int delete_node(Node* node) {
         case PIPE_NODE:{
             PipeNode* pipe_node = (PipeNode*)node;
             delete pipe_node;
+            break;            
+        }
+        case SERVICE_NODE:{
+            ServiceNode* service_node = (ServiceNode*)node;
+            delete service_node;
             break;            
         }
         default:

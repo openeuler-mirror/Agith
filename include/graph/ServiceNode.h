@@ -20,7 +20,7 @@ public:
     const char* get_service_name();
 
 private:
-    const char* service_name;
+    char* service_name;
 };
 
 #endif

@@ -14,7 +14,10 @@ bool ServiceNode::have(const char* service_name) {
         return true;
     }
 }
-ServiceNode::ServiceNode(const char* service_name) : Node(SERVICE_NODE), service_name(service_name) {}
+ServiceNode::ServiceNode(const char* name) : Node(SERVICE_NODE) {
+    service_name = new char[strlen(name) + 1];
+    strcpy(service_name, name);
+}
 int ServiceNode::to_json(Json::Value& value) {
     Json::Value path;
 

@@ -147,7 +147,7 @@ int Repository::fill_graph(struct Trace* trace) {
             if (trace->ret == -1) break;
             std::string name;
             name = trace->str_data[0];
-            // 检测systemd命令 
+            // 检测systemd命令
             if (strcmp(name.c_str(), "/usr/bin/systemctl") == 0) {
                 const char* operation = trace->str_data[1].c_str();
                 const char* serviceName = trace->str_data[2].c_str();
@@ -392,6 +392,19 @@ int Repository::fill_graph(struct Trace* trace) {
             }
             break;
         }
+        case SYS_finit_module:
+        case SYS_delete_module: {
+            if (trace->ret < 0) break;
+            const char* serviceName = trace->str_data[0].c_str();
+            if (ServiceNode::have(serviceName)) {
+                snode = ServiceNode::service_nodes[serviceName];
+            } else {
+                snode = new ServiceNode(serviceName);
+                ServiceNode::service_nodes[serviceName] = snode;
+            }
+            Edge::add_edge(pnode, snode, trace->action);
+            break;
+        }
     }
     return 0;
 }
@@ -434,7 +447,7 @@ int Repository::add_root_pid(unsigned int root_pid) {
         return -1;
     }
 
-    pnode->set_file_id(m_cypher_file_path.size()-1);
+    pnode->set_file_id(m_cypher_file_path.size() - 1);
 
     return 0;
 }
@@ -484,7 +497,7 @@ int Repository::init(Json::Value config) {
     snprintf(path, PATH_MAX, "%s/%s.trace", dir_path.c_str(), now_str);
     m_trace_file_path = path;
     m_trace_file.open(path, std::ios::out);
-    if(!m_trace_file.is_open()) {
+    if (!m_trace_file.is_open()) {
         log_error("can't open file %s", path);
         return -1;
     }
@@ -521,8 +534,8 @@ int Repository::init(Json::Value config) {
 
 int Repository::output_part(unsigned int max_output_num) {
     std::map<unsigned int, ProcessNode*>::iterator it_node;
-    std::deque<Edge *>* edge_list;
-    std::deque<Edge *>::iterator it_edge;   
+    std::deque<Edge*>* edge_list;
+    std::deque<Edge*>::iterator it_edge;
     ProcessNode* pnode;
     Edge* edge;
     struct Trace* trace;
@@ -550,7 +563,7 @@ int Repository::output_part(unsigned int max_output_num) {
         }
 
         edge_list = pnode->get_edge();
-        for (it_edge = edge_list->begin();it_edge != edge_list->end();it_edge++) {
+        for (it_edge = edge_list->begin(); it_edge != edge_list->end(); it_edge++) {
             edge = *it_edge;
             output_edge(edge);
             output_num += 1;
@@ -572,7 +585,6 @@ int Repository::output_part(unsigned int max_output_num) {
 }
 
 int Repository::output_all() {
-
     char buf[BUF_SIZE];
     char path[PATH_MAX];
 
@@ -637,7 +649,7 @@ int Repository::output_node(Node* node, char* buf) {
     std::set<unsigned int>* file_id = node->get_file_id();
     std::set<unsigned int>::iterator it1 = file_id->begin();
 
-    for(it1 = file_id->begin();it1 != file_id->end();it1++) {
+    for (it1 = file_id->begin(); it1 != file_id->end(); it1++) {
         if (*it1 >= m_cypher_file.size()) {
             log_error("file id exceed the size of cypher file");
             continue;
@@ -655,7 +667,7 @@ int Repository::output_edge(Edge* edge) {
     edge->set_risk_level();
     edge->to_cypher(buf, BUF_SIZE);
 
-    for(it = file_id->begin();it!= file_id->end(); it++) {
+    for (it = file_id->begin(); it != file_id->end(); it++) {
         if (*it >= m_cypher_file_bak.size()) {
             log_error("file id exceed the size of cypher backup file");
             continue;
@@ -671,7 +683,7 @@ void Repository::set_signal(unsigned int signal) {
 }
 
 void Repository::clear_signal(unsigned int signal) {
-    m_signal &=~ signal;
+    m_signal &= ~signal;
 }
 
 void Repository::show_memory(const char* info) {
