@@ -59,7 +59,6 @@ private:
     std::ofstream m_trace_file;
     std::string m_trace_file_path;
     std::vector<int> m_root_graph_id;
-    std::map<Node*,Node*> m_temp_service_map; 
 };
 
 #endif

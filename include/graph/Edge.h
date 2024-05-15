@@ -18,6 +18,7 @@ public:
     Edge(Node* first, Node* second);
     int add_syscall(int syscall);
     int add_msg(const char* msg);
+    // 获取msg,用于test部分检验
     const char* get_msg();
     // 计算风险等级并返回风险等级
     int set_risk_level();

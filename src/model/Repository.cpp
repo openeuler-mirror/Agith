@@ -157,7 +157,6 @@ int Repository::fill_graph(struct Trace* trace) {
                     snode = new ServiceNode(serviceName);
                     ServiceNode::service_nodes[serviceName] = snode;
                 }
-                m_temp_service_map[pnode] = snode;
                 Edge::add_edge(pnode, snode, trace->action, operation);
             }
 
@@ -377,18 +376,9 @@ int Repository::fill_graph(struct Trace* trace) {
         case SYS_writev: {
             if (trace->ret == -1) break;
             std::string str = trace->str_data[0];
-
-            if (str.find("Failed to") == 0 && m_temp_service_map.find(pnode) != m_temp_service_map.end()) {
-                snode = (ServiceNode*)m_temp_service_map[pnode];
-                if (Edge::have(pnode, snode)) {
-                    std::pair<Node*, Node*> node_pair = std::make_pair(pnode, snode);
-                    Edge* edge = Edge::edges[node_pair];
-                    pnode->del_edge(edge);
-                    snode->del_edge(edge);
-                    Edge::edges.erase(node_pair);
-                }
-                ServiceNode::remove_node(snode->get_service_name());
-                m_temp_service_map.erase(pnode);
+            std::string cmd = pnode->get_cmd();
+            if (str.find("Failed to") == 0 && cmd.find("/usr/bin/systemctl") == 0) {
+                pnode->remove_process_node();
             }
             break;
         }
@@ -561,7 +551,6 @@ int Repository::output_part(unsigned int max_output_num) {
             it_node++;
             continue;
         }
-
         edge_list = pnode->get_edge();
         for (it_edge = edge_list->begin(); it_edge != edge_list->end(); it_edge++) {
             edge = *it_edge;
