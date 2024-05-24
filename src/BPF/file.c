@@ -1,6 +1,7 @@
 #include "vmlinux.h"
 #include "utils.h"
 #include "syscall_args.h"
+#include "syscall.h"
 
 #define bpf_read(val, addr) bpf_probe_read(&val, sizeof(val), &addr);
 
@@ -157,7 +158,7 @@ int kprobe_vfs_rename(struct pt_regs* ctx) {
     struct trace* trace;
     u32* trace_ptr;
     int ret;
-    u32 syscall_nr = 316;
+    u32 syscall_nr = SYS_renameat2;
     struct dentry* dentry;
     struct inode* inode;
     u64 i_ino;
@@ -280,7 +281,7 @@ int kprobe_enter_chmod_common(struct pt_regs* ctx) {
     struct trace* trace;
     u32* trace_ptr;
     int ret;
-    u32 syscall_nr = 268;
+    u32 syscall_nr = SYS_fchmodat;
     struct path* path;
     struct dentry* dentry;
     struct inode* inode;
@@ -347,7 +348,7 @@ int kprobe_enter_vfs_mkdir(struct pt_regs* ctx) {
     u32 pid, tgid;
     struct trace* trace;
     u32* trace_ptr;
-    u32 syscall_nr = 83;
+    u32 syscall_nr = SYS_mkdir;
     struct dentry* dentry;
 
     tgid_pid = bpf_get_current_pid_tgid();
@@ -369,7 +370,7 @@ int kprobe_exit_vfs_mkdir(struct pt_regs* ctx) {
     u32 pid, tgid;
     struct trace* trace;
     u32* trace_ptr;
-    u32 syscall_nr = 83;
+    u32 syscall_nr = SYS_mkdir;
     struct dentry* dentry;
     u64 i_ino;
 
@@ -462,7 +463,7 @@ int kprobe_vfs_rmdir(struct pt_regs* ctx) {
     u32* trace_ptr;
     struct trace* trace;
     int ret;
-    u32 syscall_nr = 263;
+    u32 syscall_nr = SYS_unlinkat;
     struct dentry* dentry;
     struct inode* inode;
     u64 i_ino;
@@ -491,7 +492,7 @@ int kprobe_vfs_unlink(struct pt_regs* ctx) {
     u32* trace_ptr;
     struct trace* trace;
     int ret;
-    u32 syscall_nr = 263;
+    u32 syscall_nr = SYS_unlinkat;
     struct dentry* dentry;
     struct inode* inode;
     u64 i_ino;
@@ -587,7 +588,7 @@ int kprobe_enter_utimes(struct pt_regs* ctx) {
     u32* trace_ptr;
     struct trace* trace;
     int ret;
-    u32 syscall_nr = 280;  // usimensat
+    u32 syscall_nr = SYS_utimensat;  // usimensat
     struct path* path;
     struct dentry* dentry;
     struct inode* inode;
@@ -919,9 +920,7 @@ int trace_enter_writev(struct sys_enter_writev_args* ctx) {
 
     void* iovbase;
     bpf_read(iovbase, ctx->vec->iov_base);
-    char msg[20];
-    bpf_probe_read_str(msg, sizeof(msg), iovbase);
-    set_str1(trace_ptr, msg);
+    set_str1(trace_ptr, iovbase);
     trace->tgid = tgid;
     trace->action = ctx->syscall_nr;
     trace->ts = bpf_ktime_get_ns();

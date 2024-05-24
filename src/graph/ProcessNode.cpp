@@ -378,7 +378,7 @@ unsigned int ProcessNode::get_pid() {
     return m_pid;
 }
 
-int ProcessNode::remove_process_node() {
+int ProcessNode::remove_service_node() {
     std::deque<Edge*>* edge_list = get_edge();
     std::deque<Edge*>::iterator it_edge;
     Edge* edge;
@@ -386,28 +386,9 @@ int ProcessNode::remove_process_node() {
     for (it_edge = edge_list->begin(); it_edge != edge_list->end(); it_edge++) {
         edge = *it_edge;
         node = edge->get_second();
-        if (node == this) {
-            continue;
-        }
         int type = node->get_node_type();
-        switch (type) {
-            case PROCESS_NODE:
-                ((ProcessNode*)node)->remove_process_node();
-                break;
-            case FILE_NODE:
-                FileNode::file_nodes.erase(((FileNode*)node)->get_inode());
-                break;
-            case SOCKET_NODE:
-                SocketNode::socket_nodes.erase(((SocketNode*)node)->get_sockaddr_ipv4());
-                break;
-            case PIPE_NODE:
-                PipeNode::pipe_nodes.erase(((PipeNode*)node)->get_id());
-                break;
-            case SERVICE_NODE:
-                ServiceNode::service_nodes.erase(((ServiceNode*)node)->get_service_name());
-                break;
-            default:
-                break;
+        if (type == SERVICE_NODE){
+            ServiceNode::service_nodes.erase(((ServiceNode*)node)->get_service_name());
         }
     }
     return 0;

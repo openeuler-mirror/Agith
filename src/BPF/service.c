@@ -1,6 +1,7 @@
 #include "vmlinux.h"
 #include "utils.h"
 #include "syscall_args.h"
+#include "syscall.h"
 #define bpf_read(val, addr) bpf_probe_read(&val, sizeof(val), &addr);
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
@@ -39,7 +40,7 @@ int kprobe_do_init_module(struct pt_regs* ctx) {
     struct trace* trace;
     u32* trace_ptr;
     int ret;
-    u32 syscall_nr = 313;
+    u32 syscall_nr = SYS_finit_module;
     struct module* mod;
     char name[56];
 

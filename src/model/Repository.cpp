@@ -378,14 +378,15 @@ int Repository::fill_graph(struct Trace* trace) {
             std::string str = trace->str_data[0];
             std::string cmd = pnode->get_cmd();
             if (str.find("Failed to") == 0 && cmd.find("/usr/bin/systemctl") == 0) {
-                pnode->remove_process_node();
+                pnode->remove_service_node();
             }
             break;
         }
         case SYS_finit_module:
         case SYS_delete_module: {
             if (trace->ret < 0) break;
-            const char* serviceName = trace->str_data[0].c_str();
+            std::string serviceName = trace->str_data[0];
+            
             if (ServiceNode::have(serviceName)) {
                 snode = ServiceNode::service_nodes[serviceName];
             } else {
