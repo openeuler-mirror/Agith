@@ -39,6 +39,7 @@ public:
     unsigned int get_pid();
     virtual int to_json(Json::Value& value) override;
     virtual int to_cypher(char* buf, int buf_size) override;
+    int remove_service_node();
 
 private:
     int set_wd_cmd_from_proc();

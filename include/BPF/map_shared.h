@@ -65,13 +65,13 @@ union object {
         unsigned long cmd;
     } ops_fcntl;
 
-    struct copy_file_rang_ops{
+    struct copy_file_rang_ops {
         unsigned long i_ino_in;
         unsigned long i_ino_out;
         unsigned long fd_in;
         unsigned long fd_out;
 
-    }ops_copy_file_range;
+    } ops_copy_file_range;
 };
 
 struct pid_syscall_key {

@@ -178,6 +178,30 @@ struct sys_enter_socket_args {
     unsigned long protocol;
 };
 
+struct sys_enter_writev_args {
+    unsigned long long unused;
+    long syscall_nr;
+    unsigned long fd;
+    struct iovec * vec;
+    unsigned long vlen;
+};
+
+struct sys_enter_delete_module_args {
+    unsigned long long unused;
+    long syscall_nr;
+    const char * name;
+    unsigned int flags;
+};
+
+struct sys_enter_finit_module_args
+{
+    unsigned long long unused;
+    long syscall_nr;
+    const char* uargs;
+    unsigned int flags;
+};
+
+
 struct sys_enter_exit_args {
     unsigned long long unused;
     long syscall_nr;

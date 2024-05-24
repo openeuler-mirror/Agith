@@ -38,7 +38,7 @@ int Edge::add_edge(Node* first, Node* second, int syscall, const char* msg) {
         first->add_edge(edge);
         second->add_edge(edge);
         second->set_file_id(first->get_file_id());
-        edges[node_pair] = edge;    
+        edges[node_pair] = edge;
     }
     edge->add_syscall(syscall);
     if (msg != NULL && msg[0] != '\0') {
@@ -157,6 +157,12 @@ int Edge::add_msg(const char* msg) {
     buf[i] = '\0';
     m_msg.push_back(buf);
     return 0;
+}
+const char* Edge::get_msg() {
+    if (m_msg.size() > 0) {
+        return m_msg.front().c_str();
+    }
+    return NULL;
 }
 
 Node* Edge::get_second() {
