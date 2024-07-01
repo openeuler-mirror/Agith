@@ -20,8 +20,10 @@ RUN yum -y install jsoncpp.x86_64 \
                    clang\
                    bpftool && \
     ldconfig
-WORKDIR /Agith    
+WORKDIR /Agith 
+RUN rm -rf build   
     # Update the shared library cache
+WORKDIR /Agith 
 RUN ./build.sh compile
  
 ENTRYPOINT ["/usr/bin/bash", "-c", "mount -t debugfs debugfs /sys/kernel/debug && ./agith -c config/agith.config \"$@\"", "--"]
