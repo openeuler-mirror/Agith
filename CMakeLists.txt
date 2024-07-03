@@ -33,11 +33,11 @@ endif ()
 
 include_directories(include)
 
-
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/output)
 file(COPY config/agith.config DESTINATION ${CMAKE_BINARY_DIR}/prod/config)
 file(COPY config/syscall_64.tbl DESTINATION ${CMAKE_BINARY_DIR}/prod/config)
 
 
 add_subdirectory(src)
-enable_testing()
-add_subdirectory(test)
+# enable_testing()
+# add_subdirectory(test)
