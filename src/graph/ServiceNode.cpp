@@ -14,7 +14,10 @@ bool ServiceNode::have(std::string service_name) {
         return true;
     }
 }
-ServiceNode::ServiceNode(std::string name) : Node(SERVICE_NODE),m_service_name(name) {}
+ServiceNode::ServiceNode(std::string name, int service_type)
+    : Node(SERVICE_NODE), m_service_name(name), m_service_type(service_type) {}
+ServiceNode::ServiceNode(std::string name, std::string id, int service_type)
+    : Node(SERVICE_NODE), m_service_name(name), m_id(id), m_service_type(service_type) {}
 int ServiceNode::to_json(Json::Value& value) {
     Json::Value path;
 
@@ -29,7 +32,14 @@ int ServiceNode::to_cypher(char* buf, int buf_size) {
     char type[20];
     int n;
     get_node_type(type);
-    n = snprintf(buf, buf_size, "CREATE (:%s{graph_id:%d, service:\"%s\"", type, m_graph_id, m_service_name.c_str());
+    if (m_service_type == 3) {
+        n = snprintf(buf, buf_size, "CREATE (:%s{graph_id:%d, service:\"%s\", id:\"%s\"", type, m_graph_id,
+                     m_service_name.c_str(), m_id.c_str());
+    } else {
+        n = snprintf(buf, buf_size, "CREATE (:%s{graph_id:%d, service:\"%s\"", type, m_graph_id,
+                     m_service_name.c_str());
+    }
+
     buf += n;
     buf_size -= n;
 

@@ -31,6 +31,14 @@ else ()
     message(STATUS "can't find log4cplus")
 endif ()
 
+pkg_check_modules(CURL libcurl)
+if (CURL_FOUND)
+    link_libraries(${CURL_LIBRARIES})
+    message(STATUS "found library: ${CURL_LIBRARIES}")
+else ()
+    message(STATUS "can't find curl")
+endif ()
+
 include_directories(include)
 
 file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/output)

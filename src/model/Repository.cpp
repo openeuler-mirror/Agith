@@ -8,7 +8,7 @@
 #include <regex>
 #include <json/json.h>
 #include <malloc.h>
-
+#include <iostream>
 #include "model/Repository.h"
 #include "model/Monitor.h"
 #include "tool/Manual.h"
@@ -19,6 +19,7 @@
 #include "graph/PipeNode.h"
 #include "graph/ServiceNode.h"
 #include "tool/utils.h"
+#include <curl/curl.h>
 
 #define BUF_SIZE 40960
 
@@ -47,6 +48,8 @@ void Repository::start() {
     struct timespec last_time_output = {0, 0};
     clock_gettime(CLOCK_MONOTONIC, &now);
     last_time_output = now;
+    //初始化docker list
+    get_docker_list(docker_list);
 
     while ((m_signal & END_SIGNAL) == 0) {
         m_cv.wait(lock);
@@ -154,12 +157,56 @@ int Repository::fill_graph(struct Trace* trace) {
                 if (ServiceNode::have(serviceName)) {
                     snode = ServiceNode::service_nodes[serviceName];
                 } else {
-                    snode = new ServiceNode(serviceName);
+                    snode = new ServiceNode(serviceName,1);
                     ServiceNode::service_nodes[serviceName] = snode;
                 }
                 Edge::add_edge(pnode, snode, trace->action, operation);
             }
-
+            // 检测docker命令
+            else if (strcmp(name.c_str(), "/usr/bin/docker") == 0) {
+                const char* operation = trace->str_data[1].c_str();
+                if (strcmp(operation, "ps") == 0)
+                {
+                   break;
+                }
+                // 获取最新容器列表 对比两次value内容
+                Json::Value docker_list_now;
+                get_docker_list(docker_list_now);
+                std::set<std::string> oldIds, newIds;
+                for (const auto& item : docker_list) {
+                    oldIds.insert(item["Id"].asString());
+                }
+                for (const auto& item : docker_list_now) {
+                    newIds.insert(item["Id"].asString());
+                }
+                for (const auto& item : docker_list_now) {
+                    if (oldIds.find(item["Id"].asString()) == oldIds.end()) {
+                        //新的存在，旧的不存在，说明是新增的
+                        const char* serviceName = item["Names"][0].asCString();
+                        if (ServiceNode::have(serviceName)) {
+                            snode = ServiceNode::service_nodes[serviceName];
+                        } else {
+                            snode = new ServiceNode(serviceName, item["Id"].asString(),3);
+                            ServiceNode::service_nodes[serviceName] = snode;
+                        }
+                        Edge::add_edge(pnode, snode, trace->action, operation);
+                    }
+                }
+                for (const auto& item : docker_list) {
+                    if (newIds.find(item["id"].asString()) == newIds.end()) {
+                        // 旧的存在，新的不存在，说明是删除的
+                        const char* serviceName = item["Names"][0].asCString();
+                        if (ServiceNode::have(serviceName)) {
+                            snode = ServiceNode::service_nodes[serviceName];
+                        } else {
+                            snode = new ServiceNode(serviceName, item["Id"].asString(),3);
+                            ServiceNode::service_nodes[serviceName] = snode;
+                        }
+                        Edge::add_edge(pnode, snode, trace->action, operation);
+                    }
+                }
+                docker_list = docker_list_now;
+            }
             if (trace->str_data[1].size() != 0) {
                 name += " ";
                 name += trace->str_data[1];
@@ -386,11 +433,11 @@ int Repository::fill_graph(struct Trace* trace) {
         case SYS_delete_module: {
             if (trace->ret < 0) break;
             std::string serviceName = trace->str_data[0];
-            
+
             if (ServiceNode::have(serviceName)) {
                 snode = ServiceNode::service_nodes[serviceName];
             } else {
-                snode = new ServiceNode(serviceName);
+                snode = new ServiceNode(serviceName,2);
                 ServiceNode::service_nodes[serviceName] = snode;
             }
             Edge::add_edge(pnode, snode, trace->action);
@@ -774,4 +821,57 @@ int Repository::swap_map() {
 
     malloc_trim(0);
     return 0;
+}
+void Repository::get_docker_list(Json::Value& docker_list) {
+    // docker api
+    CURL* curl;
+    CURLcode res;
+    std::string readBuffer;
+
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+    
+    if (curl) {
+        // 设置URL
+        curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:2375/containers/json");
+
+        // 设置回调函数
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+
+        // 设置存储响应数据的字符串
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        // 发送请求
+        res = curl_easy_perform(curl);
+
+        // 检查请求是否成功
+        if (res != CURLE_OK)
+            log_error("curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+        else {
+            // 使用jsoncpp库解析JSON
+            Json::CharReaderBuilder readerBuilder;
+            Json::Value jsonData;
+            std::string errs;
+
+            std::istringstream s(readBuffer);
+            if (!Json::parseFromStream(readerBuilder, s, &docker_list, &errs)) {
+                log_error("parseFromStream error: %s", errs.c_str());
+            }
+        }
+        std::cout << docker_list << std::endl;
+        // 清理
+        curl_easy_cleanup(curl);
+    }
+    curl_global_cleanup();
+}
+// curl回调函数
+size_t Repository::WriteCallback(void* contents, size_t size, size_t nmemb, std::string* s) {
+    size_t newLength = size * nmemb;
+    try {
+        s->append((char*)contents, newLength);
+    } catch (std::bad_alloc& e) {
+        // 内存分配失败
+        return 0;
+    }
+    return newLength;
 }

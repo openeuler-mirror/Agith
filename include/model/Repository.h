@@ -21,6 +21,9 @@ public:
     void stop();
     void set_signal(unsigned int signal);
     void clear_signal(unsigned int signal);
+    void get_docker_list(Json::Value& docker_list_now);
+        // curl回调函数
+    static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* s);
 
 private:
     // 将无用数据输出
@@ -43,6 +46,7 @@ private:
     // SYS_write与SYS_read的进程可以不必在进程树中，需要单独处理
     int add_unrelated_process(struct Trace* trace);
 
+
     // 控制信号
     int m_signal;
 
@@ -59,6 +63,7 @@ private:
     std::ofstream m_trace_file;
     std::string m_trace_file_path;
     std::vector<int> m_root_graph_id;
+    Json::Value docker_list;
 };
 
 #endif
