@@ -33,19 +33,18 @@ int ServiceNode::to_cypher(char* buf, int buf_size) {
     int n;
     get_node_type(type);
     if (m_service_type == 3) {
-        n = snprintf(buf, buf_size, "CREATE (:%s{graph_id:%d, service:\"%s\", id:\"%s\"", type, m_graph_id,
+        n = snprintf(buf, buf_size, "CREATE (:%s{graph_id:%d, service:\"%s\", id:\"%s\",type:\"docker\"", type, m_graph_id,
                      m_service_name.c_str(), m_id.c_str());
-    } else {
-        n = snprintf(buf, buf_size, "CREATE (:%s{graph_id:%d, service:\"%s\"", type, m_graph_id,
+    } else if(m_service_type==2){
+        n = snprintf(buf, buf_size, "CREATE (:%s{graph_id:%d, service:\"%s\",type:\"module\"", type, m_graph_id,
+                     m_service_name.c_str());
+    }else{
+        n = snprintf(buf, buf_size, "CREATE (:%s{graph_id:%d, service:\"%s\",type:\"systemd\"", type, m_graph_id,
                      m_service_name.c_str());
     }
 
     buf += n;
     buf_size -= n;
-
-    // n = str_list_to_str(&m_path, buf, buf_size - 3);
-    // buf += n;
-    // buf_size -= n;
 
     snprintf(buf, buf_size, "})");
     return 0;

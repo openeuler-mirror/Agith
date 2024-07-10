@@ -9,6 +9,7 @@
 #include "BPF/map_user.h"
 #include "tool/Log.h"
 #include "graph/Node.h"
+#include "graph/ProcessNode.h"
 
 class Repository {
 public:
@@ -21,10 +22,12 @@ public:
     void stop();
     void set_signal(unsigned int signal);
     void clear_signal(unsigned int signal);
-    void get_docker_list(Json::Value& docker_list_now);
-        // curl回调函数
+    Json::Value get_docker_list();
+    // curl回调函数
     static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* s);
-
+    void handle_docker(std::vector<std::string>& containers,ProcessNode* pnode,struct Trace* trace,const std::string& operation);
+    // void handle_docker_stop(std::vector<std::string>& containers,ProcessNode* pnode,struct Trace* trace);
+    std::vector<std::string> extractContainerNames(const std::string& cmd,const std::string& operation);
 private:
     // 将无用数据输出
     int output_part(unsigned int max_output_num);

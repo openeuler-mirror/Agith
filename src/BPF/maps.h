@@ -29,6 +29,10 @@ struct str_buf {
     char buf[STR_BUF_SIZE];
 };
 
+struct cmd_args {
+    char inner_str[MAX_ARG_LENGTH];
+};
+
 struct {
     __uint(type, BPF_MAP_TYPE_ARRAY);
     __uint(max_entries, CPU_NUM * ENTRY_NUM_PER_CPU);
@@ -98,5 +102,12 @@ struct {
     __type(key, unsigned int);
     __type(value, unsigned int);
 } perf_event_map SEC(".maps");
+
+struct {
+    __uint(type, BPF_MAP_TYPE_ARRAY);
+    __type(key, unsigned int);
+    __type(value, struct cmd_args);
+    __uint(max_entries, CPU_NUM* ENTRY_NUM_PER_CPU);
+} arg_strings_map SEC(".maps");
 
 #endif

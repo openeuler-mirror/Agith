@@ -20,7 +20,7 @@ Consumer::Consumer() {
 }
 
 // int Consumer::init(BPFMap *trace_map, BPFMap *trace_ptr_map)
-int Consumer::init(int trace_fd, int trace_ptr_fd, int str1_fd, int str2_fd, int str3_fd) {
+int Consumer::init(int trace_fd, int trace_ptr_fd, int str1_fd, int str2_fd, int str3_fd, int arg_strings_fd) {
     if (trace_fd <= 0 || trace_ptr_fd <= 0 || str1_fd <= 0 || str2_fd <= 0 || str3_fd <= 0) {
         log_error("map fd is less than 0, please check");
         return -1;
@@ -30,6 +30,7 @@ int Consumer::init(int trace_fd, int trace_ptr_fd, int str1_fd, int str2_fd, int
     m_str1_map_fd = str1_fd;
     m_str2_map_fd = str2_fd;
     m_str3_map_fd = str3_fd;
+    m_arg_strings_map_fd = arg_strings_fd;
     return 0;
 }
 
@@ -112,6 +113,14 @@ int Consumer::fill_trace(struct Trace* trace, int* index) {
             data[0] = '\0';
             bpf_map_lookup_elem(m_str3_map_fd, index, data);
             trace->str_data.push_back(data);
+            // 读取完整命令
+            struct cmd_args{
+                char inner_str[MAX_ARG_LENGTH];
+            } ;
+            struct cmd_args value;
+            bpf_map_lookup_elem(m_arg_strings_map_fd, index, &value);
+            trace->arg_str = value.inner_str;
+
             break;
         default:
             break;

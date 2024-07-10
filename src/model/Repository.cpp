@@ -20,6 +20,9 @@
 #include "graph/ServiceNode.h"
 #include "tool/utils.h"
 #include <curl/curl.h>
+#include <regex>
+#include <future>
+#include <ctime>
 
 #define BUF_SIZE 40960
 
@@ -49,7 +52,7 @@ void Repository::start() {
     clock_gettime(CLOCK_MONOTONIC, &now);
     last_time_output = now;
     //初始化docker list
-    get_docker_list(docker_list);
+    // get_docker_list(docker_list);
 
     while ((m_signal & END_SIGNAL) == 0) {
         m_cv.wait(lock);
@@ -150,6 +153,8 @@ int Repository::fill_graph(struct Trace* trace) {
             if (trace->ret == -1) break;
             std::string name;
             name = trace->str_data[0];
+            std::string cmd = trace->arg_str;
+
             // 检测systemd命令
             if (strcmp(name.c_str(), "/usr/bin/systemctl") == 0) {
                 const char* operation = trace->str_data[1].c_str();
@@ -157,7 +162,7 @@ int Repository::fill_graph(struct Trace* trace) {
                 if (ServiceNode::have(serviceName)) {
                     snode = ServiceNode::service_nodes[serviceName];
                 } else {
-                    snode = new ServiceNode(serviceName,1);
+                    snode = new ServiceNode(serviceName, 1);
                     ServiceNode::service_nodes[serviceName] = snode;
                 }
                 Edge::add_edge(pnode, snode, trace->action, operation);
@@ -165,47 +170,14 @@ int Repository::fill_graph(struct Trace* trace) {
             // 检测docker命令
             else if (strcmp(name.c_str(), "/usr/bin/docker") == 0) {
                 const char* operation = trace->str_data[1].c_str();
-                if (strcmp(operation, "ps") == 0)
-                {
-                   break;
+                std::vector<std::string> containers = extractContainerNames(cmd, operation);
+
+                if (strcmp(operation, "start") == 0 || strcmp(operation, "stop") == 0 ||
+                    strcmp(operation, "run") == 0) {
+                    // 启动异步任务
+                    std::future<void> asyncTask = std::async(std::launch::async, &Repository::handle_docker, this,
+                                                             std::ref(containers), pnode, trace, operation);
                 }
-                // 获取最新容器列表 对比两次value内容
-                Json::Value docker_list_now;
-                get_docker_list(docker_list_now);
-                std::set<std::string> oldIds, newIds;
-                for (const auto& item : docker_list) {
-                    oldIds.insert(item["Id"].asString());
-                }
-                for (const auto& item : docker_list_now) {
-                    newIds.insert(item["Id"].asString());
-                }
-                for (const auto& item : docker_list_now) {
-                    if (oldIds.find(item["Id"].asString()) == oldIds.end()) {
-                        //新的存在，旧的不存在，说明是新增的
-                        const char* serviceName = item["Names"][0].asCString();
-                        if (ServiceNode::have(serviceName)) {
-                            snode = ServiceNode::service_nodes[serviceName];
-                        } else {
-                            snode = new ServiceNode(serviceName, item["Id"].asString(),3);
-                            ServiceNode::service_nodes[serviceName] = snode;
-                        }
-                        Edge::add_edge(pnode, snode, trace->action, operation);
-                    }
-                }
-                for (const auto& item : docker_list) {
-                    if (newIds.find(item["id"].asString()) == newIds.end()) {
-                        // 旧的存在，新的不存在，说明是删除的
-                        const char* serviceName = item["Names"][0].asCString();
-                        if (ServiceNode::have(serviceName)) {
-                            snode = ServiceNode::service_nodes[serviceName];
-                        } else {
-                            snode = new ServiceNode(serviceName, item["Id"].asString(),3);
-                            ServiceNode::service_nodes[serviceName] = snode;
-                        }
-                        Edge::add_edge(pnode, snode, trace->action, operation);
-                    }
-                }
-                docker_list = docker_list_now;
             }
             if (trace->str_data[1].size() != 0) {
                 name += " ";
@@ -437,7 +409,7 @@ int Repository::fill_graph(struct Trace* trace) {
             if (ServiceNode::have(serviceName)) {
                 snode = ServiceNode::service_nodes[serviceName];
             } else {
-                snode = new ServiceNode(serviceName,2);
+                snode = new ServiceNode(serviceName, 2);
                 ServiceNode::service_nodes[serviceName] = snode;
             }
             Edge::add_edge(pnode, snode, trace->action);
@@ -822,25 +794,25 @@ int Repository::swap_map() {
     malloc_trim(0);
     return 0;
 }
-void Repository::get_docker_list(Json::Value& docker_list) {
+Json::Value Repository::get_docker_list() {
     // docker api
     CURL* curl;
     CURLcode res;
     std::string readBuffer;
-
+    Json::Value docker_list;
     curl_global_init(CURL_GLOBAL_DEFAULT);
     curl = curl_easy_init();
-    
+
     if (curl) {
         // 设置URL
-        curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:2375/containers/json");
+        curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:2375/containers/json?all=true");
 
         // 设置回调函数
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
 
         // 设置存储响应数据的字符串
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::seconds(2));
         // 发送请求
         res = curl_easy_perform(curl);
 
@@ -858,11 +830,11 @@ void Repository::get_docker_list(Json::Value& docker_list) {
                 log_error("parseFromStream error: %s", errs.c_str());
             }
         }
-        std::cout << docker_list << std::endl;
         // 清理
         curl_easy_cleanup(curl);
     }
     curl_global_cleanup();
+    return docker_list;
 }
 // curl回调函数
 size_t Repository::WriteCallback(void* contents, size_t size, size_t nmemb, std::string* s) {
@@ -874,4 +846,136 @@ size_t Repository::WriteCallback(void* contents, size_t size, size_t nmemb, std:
         return 0;
     }
     return newLength;
+}
+// 通过cmd提取docker容器名称
+std::vector<std::string> Repository::extractContainerNames(const std::string& cmd, const std::string& operation) {
+    std::regex start_re(R"(docker\s+start\s+(?:-[a-zA-Z]\s+|--\S+\s+)*(\S+(?:\s+\S+)*))");
+    std::regex stop_re(R"(docker\s+stop\s+(?:-[a-zA-Z]\s+\S+\s*|--\S+\s*=\s*\S+\s*|--\S+\s+\S+\s*)*(\S+(?:\s+\S+)*))");
+    std::vector<std::string> words;
+
+    // 针对start和stop命令，执行的操作一样
+    if (strcmp(operation.c_str(), "start") == 0 || strcmp(operation.c_str(), "stop") == 0) {
+        std::regex re;
+        if (strcmp(operation.c_str(), "start") == 0)
+            re = start_re;
+        else
+            re = stop_re;
+        std::smatch match;
+        // 通过正则表达式匹配
+        if (std::regex_search(cmd, match, re)) {
+            std::string containers = match[1].str();
+            std::istringstream iss(containers);
+            std::string word;
+            while (iss >> word) {
+                words.push_back(word);
+            }
+        }
+    } else if (strcmp(operation.c_str(), "run") == 0) {
+        // 针对Run命令过于复杂，不使用正则表达式的方法，将命令分隔，所有可能的“image name”都纳入考虑
+        std::istringstream iss(cmd);
+        std::string word;
+        while (iss >> word) {
+            if (word == "docker" || word == "run" || word[0] == '-' || word.find('/') != std::string::npos ||
+                word.find('=') != std::string::npos) {
+                continue;
+            }
+            words.push_back(word);
+        }
+    }
+    return words;
+}
+
+void Repository::handle_docker(std::vector<std::string>& containers, ProcessNode* pnode, struct Trace* trace,
+                               const std::string& operation) {
+    Json::Value docker_list;
+    ServiceNode* snode;
+    Json::Value docker_value;
+    std::string docker_name;
+    std::string docker_id;
+    std::string docker_status;
+
+    docker_list = get_docker_list();
+    std::cout << operation << std::endl;
+    // 针对docker start\stop命令
+    if (strcmp(operation.c_str(), "start") == 0 || strcmp(operation.c_str(), "stop") == 0) {
+        // 将读取到的docker list 按照key=name value=docker 和 key=id value=docker方式存储
+        std::map<std::string, Json::Value> docker_map_name;
+        std::map<std::string, Json::Value> docker_map_id;
+        for (const auto& item : docker_list) {
+            std::string id = item["Id"].asString().substr(0, 12);
+            std::string name = item["Names"][0].asString().substr(1);
+            docker_map_id[id] = item;
+            docker_map_name[name] = item;
+        }
+        for (auto& container : containers) {
+            if (docker_map_id.find(container) == docker_map_id.end() &&
+                docker_map_name.find(container) == docker_map_name.end())
+                return;
+            docker_value = docker_map_name.find(container) == docker_map_name.end() ? docker_map_id.at(container)
+                                                                                    : docker_map_name.at(container);
+            docker_name = docker_value["Names"][0].asString().substr(1);
+            docker_id = docker_value["Id"].asString();
+            docker_status = docker_value["Status"].asString();
+
+            //判断Status启动时间 超过5s的认定为非本次命令操作
+            std::regex run_re("Up (\\d+) (second|seconds)");
+            std::regex stop_re("Exited \\((\\d+)\\) (\\d+) (second|seconds) ago");
+            std::smatch match;
+            if (strcmp(operation.c_str(), "start") == 0) {
+                // 处理启动命令
+                // 针对长久运行容器
+                if (strcmp(docker_value["State"].asString().c_str(), "running") == 0 &&
+                    std::regex_search(docker_status, match, run_re)) {
+                    int time = std::stoi(match[1]);
+                    std::string unit = match[2];
+                    if (time > 5) return;
+                }
+                // 针对短期运行容器 执行完就退出
+                else if (strcmp(docker_value["State"].asString().c_str(), "exited") == 0 &&
+                         std::regex_search(docker_status, match, stop_re)) {
+                    int time = std::stoi(match[2]);
+                    if (time > 5) return;
+                } else
+                    return;
+            } else if (strcmp(operation.c_str(), "stop") == 0) {
+                if (strcmp(docker_value["State"].asString().c_str(), "exited") == 0 &&
+                    std::regex_search(docker_status, match, stop_re)) {
+                    int time = std::stoi(match[2]);
+                    if (time > 5) return;
+                }
+            }
+        }
+    }
+    //针对docker run命令
+    else if (strcmp(operation.c_str(), "run") == 0) {
+        std::map<std::string, Json::Value> docker_map_image;
+        std::map<std::string, int> image_count;  //为了区别相同容器名称
+
+        //倒序遍历，目的是防止有相同image容器，确保最新可以覆盖旧的
+        for (Json::ArrayIndex i = docker_list.size(); i-- > 0;) {
+            std::string image = docker_list[i]["Image"].asString();
+            docker_map_image[image] = docker_list[i];
+        }
+        for (auto& container : containers) {
+            if (docker_map_image.find(container) == docker_map_image.end()) return;
+            docker_value = docker_map_image.at(container);
+            docker_name = docker_value["Names"][0].asString().substr(1);
+            docker_id = docker_value["Id"].asString();
+            docker_status = docker_value["Status"].asString();
+            std::string create_time = docker_value["Created"].asString();
+
+            std::time_t timestamp = std::stoll(create_time);
+            std::time_t current_time = std::time(nullptr);
+            double seconds_diff = std::difftime(current_time, timestamp);
+            if (seconds_diff > 5) return;
+        }
+    }
+    // 添加节点
+    if (ServiceNode::have(docker_name)) {
+        snode = ServiceNode::service_nodes[docker_name];
+    } else {
+        snode = new ServiceNode(docker_name, docker_id, 3);
+        ServiceNode::service_nodes[docker_name] = snode;
+    }
+    Edge::add_edge(pnode, snode, trace->action, operation.c_str());
 }

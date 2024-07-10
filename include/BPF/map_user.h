@@ -18,6 +18,7 @@
 #define STR3_MAP "str3_map"
 #define PERF_EVENT_MAP "perf_event_map"
 #define REPEAT_TRACE_MAP "repeat_trace_map"
+#define ARG_STRINGS_MAP "arg_strings_map"
 
 struct Trace {
     unsigned int tgid;
@@ -27,6 +28,7 @@ struct Trace {
     long ret;
     int ready;  // 0: empty or writing; 1: readable; 2: useless
     std::vector<std::string> str_data;
+    std::string arg_str;
 
     const char* c_str(char* buf, int buf_size) {
         struct sockaddr_in* ip = NULL;
