@@ -15,7 +15,6 @@
 #define TRACE_PTR_MAP "trace_ptr_map"
 #define STR1_MAP "str1_map"
 #define STR2_MAP "str2_map"
-#define STR3_MAP "str3_map"
 #define PERF_EVENT_MAP "perf_event_map"
 #define REPEAT_TRACE_MAP "repeat_trace_map"
 #define ARG_STRINGS_MAP "arg_strings_map"

@@ -18,4 +18,5 @@ unsigned long get_proc_cpu_time(unsigned int pid);
 unsigned int get_proc_mem(unsigned int pid);
 int delete_edge(Edge* edge);
 int delete_node(Node* node);
+Json::Value get_docker_list();
 #endif

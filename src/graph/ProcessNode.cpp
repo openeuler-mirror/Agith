@@ -101,7 +101,7 @@ int ProcessNode::execve(const char* new_cmd) {
     } else if (new_cmd[0] == '/') {
         m_cmd.push_back(new_cmd);
     } else {
-        m_cmd.push_back(m_wd.back() + new_cmd);
+        m_cmd.push_back(m_wd.back() + '/' + new_cmd);
     }
     return 0;
 }
@@ -387,9 +387,16 @@ int ProcessNode::remove_service_node() {
         edge = *it_edge;
         node = edge->get_second();
         int type = node->get_node_type();
-        if (type == SERVICE_NODE){
+        if (type == SERVICE_NODE) {
             ServiceNode::service_nodes.erase(((ServiceNode*)node)->get_service_name());
         }
     }
     return 0;
+}
+
+void ProcessNode::set_finish(bool b) {
+    m_finish = b;
+}
+bool ProcessNode::get_finish() {
+    return m_finish;
 }

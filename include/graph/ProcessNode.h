@@ -40,7 +40,8 @@ public:
     virtual int to_json(Json::Value& value) override;
     virtual int to_cypher(char* buf, int buf_size) override;
     int remove_service_node();
-
+    void set_finish(bool b);
+    bool get_finish();
 private:
     int set_wd_cmd_from_proc();
     int get_path_by_dfd(int dfd, const char* filename, char* path, int path_size);
@@ -55,5 +56,7 @@ private:
     std::deque<std::string> m_wd;
     // command
     std::deque<std::string> m_cmd;
+    // 部分命令需多线程长时间处理，存在m_exit_time设置后直接output情况，导致最后pnode被清理
+    bool m_finish=false;
 };
 #endif

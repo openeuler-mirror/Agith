@@ -138,18 +138,6 @@ int trace_enter_execve(struct sys_enter_execve_args* ctx) {
     trace->tgid = tgid;
     trace->action = ctx->syscall_nr;
     trace->ts = bpf_ktime_get_ns();
-    set_str1(trace_ptr, ctx->filename);
-    ret = bpf_probe_read(&argv, sizeof(argv), &ctx->argv[1]);
-    if (ret) {
-        return 0;
-    }
-    set_str2(trace_ptr, argv);
-
-    ret = bpf_probe_read(&argv, sizeof(argv), &ctx->argv[2]);
-    if (ret) {
-        return 0;
-    }
-    set_str3(trace_ptr, argv);
     
     // 获取完整命令
     argv_map_value = bpf_map_lookup_elem(&arg_strings_map, &trace_ptr);

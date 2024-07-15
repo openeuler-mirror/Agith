@@ -10,6 +10,8 @@
 #include "tool/Log.h"
 #include "graph/Node.h"
 #include "graph/ProcessNode.h"
+#include <future>
+#include <shared_mutex>
 
 class Repository {
 public:
@@ -22,12 +24,9 @@ public:
     void stop();
     void set_signal(unsigned int signal);
     void clear_signal(unsigned int signal);
-    Json::Value get_docker_list();
-    // curl回调函数
-    static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* s);
-    void handle_docker(std::vector<std::string>& containers,ProcessNode* pnode,struct Trace* trace,const std::string& operation);
-    // void handle_docker_stop(std::vector<std::string>& containers,ProcessNode* pnode,struct Trace* trace);
-    std::vector<std::string> extractContainerNames(const std::string& cmd,const std::string& operation);
+    void handle_docker(std::vector<std::string> containers, pid_t tgid, int syscall_id, const std::string& operation);
+    std::vector<std::string> extractContainerNames(const std::string& cmd, const std::string& operation);
+
 private:
     // 将无用数据输出
     int output_part(unsigned int max_output_num);
@@ -49,7 +48,6 @@ private:
     // SYS_write与SYS_read的进程可以不必在进程树中，需要单独处理
     int add_unrelated_process(struct Trace* trace);
 
-
     // 控制信号
     int m_signal;
 
@@ -67,6 +65,7 @@ private:
     std::string m_trace_file_path;
     std::vector<int> m_root_graph_id;
     Json::Value docker_list;
+    std::vector<std::future<void>> futures;  // 存储 future 对象
 };
 
 #endif
