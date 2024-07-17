@@ -506,7 +506,7 @@ int kprobe_vfs_unlink(struct pt_regs* ctx) {
     trace = bpf_map_lookup_elem(&trace_map, trace_ptr);
     if (trace == NULL) return 0;
 
-    dentry = (struct dentry*)PT_REGS_PARM2(ctx);  // victum
+    dentry = (struct dentry*)PT_REGS_PARM3(ctx);  // victum
     bpf_read(inode, dentry->d_inode);
     bpf_read(i_ino, inode->i_ino);
     trace->obj.file.i_ino = i_ino;
