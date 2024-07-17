@@ -101,16 +101,23 @@ int Consumer::fill_trace(struct Trace* trace, int* index) {
             bpf_map_lookup_elem(m_str2_map_fd, index, data);
             trace->str_data.push_back(data);
             break;
-        case SYS_execve:
+        case SYS_execve: {
             // 读取完整命令
             struct cmd_args {
                 char inner_str[MAX_ARG_LENGTH];
             };
             struct cmd_args value;
-            bpf_map_lookup_elem(m_arg_strings_map_fd, index, &value);
-            trace->arg_str = value.inner_str;
-
+            if (bpf_map_lookup_elem(m_arg_strings_map_fd, index, &value) == 0) {
+                // 删去命令结尾空格
+                size_t len = strlen(value.inner_str);
+                if (len > 0 && value.inner_str[len - 1] == ' ') {
+                    value.inner_str[len - 1] = '\0';
+                }
+                trace->arg_str = value.inner_str;
+            }
             break;
+        }
+
         default:
             break;
     }

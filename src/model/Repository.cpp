@@ -164,7 +164,7 @@ int Repository::fill_graph(struct Trace* trace) {
             }
 
             // 检测systemd命令
-            if (cmds.size() > 0 && strcmp(cmds[0].c_str(), "systemctl") == 0) {
+            if (cmds.size() > 0 && strcmp(cmds[0].c_str(), "/usr/bin/systemctl") == 0) {
                 const char* operation = cmds[1].c_str();
                 const char* serviceName = cmds[2].c_str();
                 if (ServiceNode::have(serviceName)) {
@@ -176,7 +176,7 @@ int Repository::fill_graph(struct Trace* trace) {
                 Edge::add_edge(pnode, snode, trace->action, operation);
             }
             // 检测docker命令
-            else if (cmds.size() > 0 && strcmp(cmds[0].c_str(), "docker") == 0) {
+            else if (cmds.size() > 0 && strcmp(cmds[0].c_str(), "/usr/bin/docker") == 0) {
                 pnode->set_finish(true);
                 const char* operation = cmds[1].c_str();
                 if (strcmp(operation, "start") == 0 || strcmp(operation, "stop") == 0 ||

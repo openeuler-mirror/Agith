@@ -142,9 +142,13 @@ int trace_enter_execve(struct sys_enter_execve_args* ctx) {
     // 获取完整命令
     argv_map_value = bpf_map_lookup_elem(&arg_strings_map, &trace_ptr);
     if (argv_map_value==NULL) return 0;
-    
+
     for (int i = 0; i < MAX_ARG; i++) {
-       ret = bpf_probe_read(&argv, sizeof(argv), &ctx->argv[i]);
+       if (i==0)
+       {
+         ret = bpf_probe_read(&argv, sizeof(argv), &ctx->filename);
+       }  else ret = bpf_probe_read(&argv, sizeof(argv), &ctx->argv[i]);
+       
        if (argv == 0 || ret < 0) {
            break;
        }
@@ -152,7 +156,6 @@ int trace_enter_execve(struct sys_enter_execve_args* ctx) {
        {    
             ret = bpf_probe_read_str(&argv_map_value[offset],STR_BUF_SIZE,argv);
             offset+=ret;
-
             if (offset-1>0&&offset-1<MAX_ARG_LENGTH)
             {
                argv_map_value[offset-1] = ' ';

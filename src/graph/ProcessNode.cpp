@@ -101,7 +101,7 @@ int ProcessNode::execve(const char* new_cmd) {
     } else if (new_cmd[0] == '/') {
         m_cmd.push_back(new_cmd);
     } else {
-        m_cmd.push_back(m_wd.back() + '/' + new_cmd);
+        m_cmd.push_back(m_wd.back() + new_cmd);
     }
     return 0;
 }
