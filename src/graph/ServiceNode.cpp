@@ -14,9 +14,8 @@ bool ServiceNode::have(std::string service_name) {
         return true;
     }
 }
-ServiceNode::ServiceNode(std::string name, ServiceType service_type)
-    : Node(SERVICE_NODE), m_service_name(name), m_service_type(service_type) {}
-ServiceNode::ServiceNode(std::string name, std::string id, ServiceType service_type)
+
+ServiceNode::ServiceNode(std::string name, ServiceType service_type,std::string id )
     : Node(SERVICE_NODE), m_service_name(name), m_id(id), m_service_type(service_type) {}
 int ServiceNode::to_json(Json::Value& value) {
     Json::Value path;

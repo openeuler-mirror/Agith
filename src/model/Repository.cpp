@@ -931,7 +931,7 @@ void Repository::handle_docker(std::vector<std::string> containers, pid_t tgid, 
         if (ServiceNode::have(docker_name)) {
             snode = ServiceNode::service_nodes[docker_name];
         } else {
-            snode = new ServiceNode(docker_name, docker_id, ServiceNode::ServiceType::DOCKER_SERVICE);
+            snode = new ServiceNode(docker_name,ServiceNode::ServiceType::DOCKER_SERVICE,docker_id);
             ServiceNode::service_nodes[docker_name] = snode;
         }
         Edge::add_edge(pnode, snode, syscall_id, operation.c_str());

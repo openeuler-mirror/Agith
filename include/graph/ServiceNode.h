@@ -21,8 +21,7 @@ public:
     static log4cplus::Logger m_log;
     static int remove_node(const char* service_name);
 
-    ServiceNode(std::string service_name, ServiceType service_type);
-    ServiceNode(std::string service_name, std::string id, ServiceType service_type);
+    ServiceNode(std::string service_name, ServiceType service_type, std::string id="");
     virtual int to_json(Json::Value& value) override;
     virtual int to_cypher(char* buf, int buf_size) override;
     const char* get_service_name();
