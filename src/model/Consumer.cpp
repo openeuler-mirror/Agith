@@ -20,8 +20,8 @@ Consumer::Consumer() {
 }
 
 // int Consumer::init(BPFMap *trace_map, BPFMap *trace_ptr_map)
-int Consumer::init(int trace_fd, int trace_ptr_fd, int str1_fd, int str2_fd, int arg_strings_fd) {
-    if (trace_fd <= 0 || trace_ptr_fd <= 0 || str1_fd <= 0 || str2_fd <= 0 || arg_strings_fd <= 0) {
+int Consumer::init(int trace_fd, int trace_ptr_fd, int str1_fd, int str2_fd) {
+    if (trace_fd <= 0 || trace_ptr_fd <= 0 || str1_fd <= 0 || str2_fd <= 0) {
         log_error("map fd is less than 0, please check");
         return -1;
     }
@@ -29,7 +29,6 @@ int Consumer::init(int trace_fd, int trace_ptr_fd, int str1_fd, int str2_fd, int
     m_trace_ptr_map_fd = trace_ptr_fd;
     m_str1_map_fd = str1_fd;
     m_str2_map_fd = str2_fd;
-    m_arg_strings_map_fd = arg_strings_fd;
     return 0;
 }
 
@@ -96,24 +95,20 @@ int Consumer::fill_trace(struct Trace* trace, int* index) {
         case SYS_renameat2:
             bpf_map_lookup_elem(m_str1_map_fd, index, data);
             trace->str_data.push_back(data);
-
-            data[0] = '\0';
-            bpf_map_lookup_elem(m_str2_map_fd, index, data);
-            trace->str_data.push_back(data);
+            char value[MAX_ARG_LENGTH];
+            bpf_map_lookup_elem(m_str2_map_fd, index, &value);
+            trace->str_data.push_back(value);
             break;
         case SYS_execve: {
             // 读取完整命令
-            struct cmd_args {
-                char inner_str[MAX_ARG_LENGTH];
-            };
-            struct cmd_args value;
-            if (bpf_map_lookup_elem(m_arg_strings_map_fd, index, &value) == 0) {
+            char value[MAX_ARG_LENGTH];
+            if (bpf_map_lookup_elem(m_str2_map_fd, index, &value) == 0) {
                 // 删去命令结尾空格
-                size_t len = strlen(value.inner_str);
-                if (len > 0 && value.inner_str[len - 1] == ' ') {
-                    value.inner_str[len - 1] = '\0';
+                size_t len = strlen(value);
+                if (len > 0 && value[len - 1] == ' ') {
+                    value[len - 1] = '\0';
                 }
-                trace->arg_str = value.inner_str;
+                trace->arg_str = value;
             }
             break;
         }

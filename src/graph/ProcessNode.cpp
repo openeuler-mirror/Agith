@@ -394,9 +394,17 @@ int ProcessNode::remove_service_node() {
     return 0;
 }
 
-void ProcessNode::set_finish(bool b) {
-    m_finish = b;
+void ProcessNode::set_future(std::future<void> future){
+    m_future = std::move(future);
 }
-bool ProcessNode::get_finish() {
-    return m_finish;
+
+bool ProcessNode::is_future_ready(){    
+      if (!m_future.valid()) {
+            return true; // Future is empty
+        }
+        // Check if the future is ready
+        if (m_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+            return true;
+        }
+        return false;
 }

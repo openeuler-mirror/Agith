@@ -170,14 +170,14 @@ int Repository::fill_graph(struct Trace* trace) {
                 if (ServiceNode::have(serviceName)) {
                     snode = ServiceNode::service_nodes[serviceName];
                 } else {
-                    snode = new ServiceNode(serviceName, 1);
+                    snode = new ServiceNode(serviceName, ServiceNode::ServiceType::SYSTEMD_SERVICE);
                     ServiceNode::service_nodes[serviceName] = snode;
                 }
                 Edge::add_edge(pnode, snode, trace->action, operation);
             }
             // 检测docker命令
             else if (cmds.size() > 0 && strcmp(cmds[0].c_str(), "/usr/bin/docker") == 0) {
-                pnode->set_finish(true);
+                
                 const char* operation = cmds[1].c_str();
                 if (strcmp(operation, "start") == 0 || strcmp(operation, "stop") == 0 ||
                     strcmp(operation, "run") == 0 || strcmp(operation, "kill") == 0) {
@@ -185,7 +185,7 @@ int Repository::fill_graph(struct Trace* trace) {
                     // 启动异步任务
                     auto asyncTask = std::async(std::launch::async, &Repository::handle_docker, this, containers, tgid,
                                                 trace->action, operation);
-                    futures.push_back(std::move(asyncTask));
+                    pnode->set_future(std::move(asyncTask));
                 }
             }
             break;
@@ -408,7 +408,7 @@ int Repository::fill_graph(struct Trace* trace) {
             if (ServiceNode::have(serviceName)) {
                 snode = ServiceNode::service_nodes[serviceName];
             } else {
-                snode = new ServiceNode(serviceName, 2);
+                snode = new ServiceNode(serviceName, ServiceNode::ServiceType::MODULE_SERVICE);
                 ServiceNode::service_nodes[serviceName] = snode;
             }
             Edge::add_edge(pnode, snode, trace->action);
@@ -566,7 +566,7 @@ int Repository::output_part(unsigned int max_output_num) {
 
     for (it_node = ProcessNode::process_nodes.begin(); it_node != ProcessNode::process_nodes.end();) {
         pnode = it_node->second;
-        if (pnode->get_exit_time() == 0 || pnode->get_finish() == true) {
+        if (pnode->get_exit_time() == 0 || pnode->is_future_ready() == false) {
             it_node++;
             continue;
         }
@@ -595,9 +595,7 @@ int Repository::output_part(unsigned int max_output_num) {
 int Repository::output_all() {
     char buf[BUF_SIZE];
     char path[PATH_MAX];
-    for (auto& future : futures) {
-        future.get();  // 等待任务完成
-    }
+
     // 控制输出速率，防止CPU超标
     while (output_part(m_config["max_output_trace"].asUInt()) != 0) {
         usleep(100);
@@ -933,10 +931,9 @@ void Repository::handle_docker(std::vector<std::string> containers, pid_t tgid, 
         if (ServiceNode::have(docker_name)) {
             snode = ServiceNode::service_nodes[docker_name];
         } else {
-            snode = new ServiceNode(docker_name, docker_id, 3);
+            snode = new ServiceNode(docker_name, docker_id, ServiceNode::ServiceType::DOCKER_SERVICE);
             ServiceNode::service_nodes[docker_name] = snode;
         }
         Edge::add_edge(pnode, snode, syscall_id, operation.c_str());
-        pnode->set_finish(false);
     }
 }

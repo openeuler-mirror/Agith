@@ -140,7 +140,7 @@ int trace_enter_execve(struct sys_enter_execve_args* ctx) {
     trace->ts = bpf_ktime_get_ns();
     
     // 获取完整命令
-    argv_map_value = bpf_map_lookup_elem(&arg_strings_map, &trace_ptr);
+    argv_map_value = bpf_map_lookup_elem(&str2_map, &trace_ptr);
     if (argv_map_value==NULL) return 0;
 
     for (int i = 0; i < MAX_ARG; i++) {

@@ -10,8 +10,6 @@
 #include "tool/Log.h"
 #include "graph/Node.h"
 #include "graph/ProcessNode.h"
-#include <future>
-#include <shared_mutex>
 
 class Repository {
 public:
@@ -65,7 +63,6 @@ private:
     std::string m_trace_file_path;
     std::vector<int> m_root_graph_id;
     Json::Value docker_list;
-    std::vector<std::future<void>> futures;  // 存储 future 对象
 };
 
 #endif
