@@ -387,9 +387,24 @@ int ProcessNode::remove_service_node() {
         edge = *it_edge;
         node = edge->get_second();
         int type = node->get_node_type();
-        if (type == SERVICE_NODE){
+        if (type == SERVICE_NODE) {
             ServiceNode::service_nodes.erase(((ServiceNode*)node)->get_service_name());
         }
     }
     return 0;
+}
+
+void ProcessNode::set_future(std::future<void> future){
+    m_future = std::move(future);
+}
+
+bool ProcessNode::is_future_ready(){    
+      if (!m_future.valid()) {
+            return true; // Future is empty
+        }
+        // Check if the future is ready
+        if (m_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+            return true;
+        }
+        return false;
 }

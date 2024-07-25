@@ -5,6 +5,7 @@
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
 #include "BPF/map_shared.h"
+#include "vmlinux.h"
 
 /* flags for BPF_MAP_UPDATE_ELEM command */
 #define BPF_ANY 0     /* create new element or update existing */
@@ -27,6 +28,10 @@ struct trace {
 
 struct str_buf {
     char buf[STR_BUF_SIZE];
+};
+
+struct cmd_args {
+    char cmd_str[MAX_ARG_LENGTH];
 };
 
 struct {
@@ -75,15 +80,8 @@ struct {
     __uint(type, BPF_MAP_TYPE_ARRAY);
     __uint(max_entries, CPU_NUM * ENTRY_NUM_PER_CPU);
     __type(key, int);
-    __type(value, struct str_buf);
+    __type(value, struct cmd_args);
 } str2_map SEC(".maps");
-
-struct {
-    __uint(type, BPF_MAP_TYPE_ARRAY);
-    __uint(max_entries, CPU_NUM * ENTRY_NUM_PER_CPU);
-    __type(key, int);
-    __type(value, struct str_buf);
-} str3_map SEC(".maps");
 
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
@@ -98,5 +96,6 @@ struct {
     __type(key, unsigned int);
     __type(value, unsigned int);
 } perf_event_map SEC(".maps");
+
 
 #endif

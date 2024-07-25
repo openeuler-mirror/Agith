@@ -16,7 +16,7 @@ struct cmp {
 class Consumer {
 public:
     static std::shared_ptr<Consumer> get_consumer();
-    int init(int trace_fd, int trace_ptr_fd, int str1_fd, int str2_fd, int str3_fd);
+    int init(int trace_fd, int trace_ptr_fd, int str1_fd, int str2_fd);
     void start();
     void stop();
     void notify();
@@ -34,7 +34,6 @@ private:
     int m_trace_ptr_map_fd;
     int m_str1_map_fd;
     int m_str2_map_fd;
-    int m_str3_map_fd;
 
     std::mutex m_mutex;
     std::condition_variable m_cv;

@@ -2,6 +2,8 @@
 #define __MAP_SHARED_H
 
 #define STR_BUF_SIZE 128
+#define MAX_ARG 15
+#define MAX_ARG_LENGTH 512
 
 #ifndef CPU_NUM
     #define CPU_NUM 16

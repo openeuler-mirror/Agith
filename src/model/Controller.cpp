@@ -239,9 +239,8 @@ int Controller::init_consumer() {
     int trace_ptr_fd = m_bpf_loader.get_map_fd(TRACE_PTR_MAP);
     int str1_fd = m_bpf_loader.get_map_fd(STR1_MAP);
     int str2_fd = m_bpf_loader.get_map_fd(STR2_MAP);
-    int str3_fd = m_bpf_loader.get_map_fd(STR3_MAP);
 
-    if (Consumer::get_consumer()->init(trace_fd, trace_ptr_fd, str1_fd, str2_fd, str3_fd)) {
+    if (Consumer::get_consumer()->init(trace_fd, trace_ptr_fd, str1_fd, str2_fd)) {
         return -1;
     }
 

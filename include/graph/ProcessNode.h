@@ -7,6 +7,7 @@
 #include "graph/Node.h"
 #include "graph/FileNode.h"
 #include "graph/SocketNode.h"
+#include <future>
 
 class ProcessNode : public Node {
 public:
@@ -40,7 +41,8 @@ public:
     virtual int to_json(Json::Value& value) override;
     virtual int to_cypher(char* buf, int buf_size) override;
     int remove_service_node();
-
+    void set_future(std::future<void> future);
+    bool is_future_ready();
 private:
     int set_wd_cmd_from_proc();
     int get_path_by_dfd(int dfd, const char* filename, char* path, int path_size);
@@ -55,5 +57,7 @@ private:
     std::deque<std::string> m_wd;
     // command
     std::deque<std::string> m_cmd;
+    // 部分命令需多线程长时间处理，存在m_exit_time设置后直接output情况，导致最后pnode被清理
+    std::future<void> m_future;
 };
 #endif

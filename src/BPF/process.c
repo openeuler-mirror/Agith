@@ -3,7 +3,6 @@
 #include "syscall_args.h"
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
-
 SEC("tracepoint/syscalls/sys_exit_clone")  // _do_fork
 int trace_exit_clone(struct sys_exit_args* ctx) {
     struct task_struct *current, *parent;
@@ -117,6 +116,9 @@ int trace_enter_execve(struct sys_enter_execve_args* ctx) {
     int ret;
     const char* envp;
     const char* argv;
+    char *argv_map_value;
+    int offset=0;
+    char argv_buf[256];
 
     tgid_pid = bpf_get_current_pid_tgid();
     tgid = tgid_pid >> 32;
@@ -136,19 +138,30 @@ int trace_enter_execve(struct sys_enter_execve_args* ctx) {
     trace->tgid = tgid;
     trace->action = ctx->syscall_nr;
     trace->ts = bpf_ktime_get_ns();
-    set_str1(trace_ptr, ctx->filename);
-    ret = bpf_probe_read(&argv, sizeof(argv), &ctx->argv[1]);
-    if (ret) {
-        return 0;
-    }
-    set_str2(trace_ptr, argv);
+    
+    // 获取完整命令
+    argv_map_value = bpf_map_lookup_elem(&str2_map, &trace_ptr);
+    if (argv_map_value==NULL) return 0;
 
-    ret = bpf_probe_read(&argv, sizeof(argv), &ctx->argv[2]);
-    if (ret) {
-        return 0;
+    for (int i = 0; i < MAX_ARG; i++) {
+       if (i==0)
+       {
+         ret = bpf_probe_read(&argv, sizeof(argv), &ctx->filename);
+       }  else ret = bpf_probe_read(&argv, sizeof(argv), &ctx->argv[i]);
+       
+       if (argv == 0 || ret < 0) {
+           break;
+       }
+       if (offset>=0 && offset+STR_BUF_SIZE<MAX_ARG_LENGTH)
+       {    
+            ret = bpf_probe_read_str(&argv_map_value[offset],STR_BUF_SIZE,argv);
+            offset+=ret;
+            if (offset-1>0&&offset-1<MAX_ARG_LENGTH)
+            {
+               argv_map_value[offset-1] = ' ';
+            } 
+       }
     }
-    set_str3(trace_ptr, argv);
-
     return 0;
 }
 
