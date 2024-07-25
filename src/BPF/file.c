@@ -456,7 +456,8 @@ int trace_enter_unlinkat(struct sys_enter_unlinkat_args* ctx) {
     return 0;
 }
 
-SEC("kprobe/vfs_rmdir")
+// SEC("kprobe/vfs_rmdir")
+SEC("kprobe/security_inode_rmdir")
 int kprobe_vfs_rmdir(struct pt_regs* ctx) {
     u64 tgid_pid;
     u32 tgid, pid;
