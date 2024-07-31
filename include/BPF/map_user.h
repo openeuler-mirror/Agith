@@ -15,15 +15,8 @@
 #define TRACE_PTR_MAP "trace_ptr_map"
 #define STR1_MAP "str1_map"
 #define STR2_MAP "str2_map"
-#define STR3_MAP "str3_map"
 #define PERF_EVENT_MAP "perf_event_map"
 #define REPEAT_TRACE_MAP "repeat_trace_map"
-
-struct bpf_map_data {
-    int fd;
-    char* name;
-    struct bpf_map_def def;
-};
 
 struct Trace {
     unsigned int tgid;
@@ -33,6 +26,7 @@ struct Trace {
     long ret;
     int ready;  // 0: empty or writing; 1: readable; 2: useless
     std::vector<std::string> str_data;
+    std::string arg_str;
 
     const char* c_str(char* buf, int buf_size) {
         struct sockaddr_in* ip = NULL;

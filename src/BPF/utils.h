@@ -1,8 +1,12 @@
-#ifndef __UTILS_H
-#define __UTILS_H
+#ifndef __BPF_UTILS_H
+#define __BPF_UTILS_H
+
 #include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
+#include <bpf/bpf_core_read.h>
 #include "maps.h"
 #include "syscall_args.h"
+#include "vmlinux.h"
 
 #ifdef bpf_printk
     #undef bpf_printk
@@ -97,12 +101,6 @@ static __always_inline long set_str2(unsigned int trace_ptr, const char* value) 
     return bpf_probe_read_str(buf, STR_BUF_SIZE, value);
 }
 
-static __always_inline long set_str3(unsigned int trace_ptr, const char* value) {
-    char* buf;
-    buf = bpf_map_lookup_elem(&str3_map, &trace_ptr);
-    if (buf == NULL) return -1;
-    return bpf_probe_read_str(buf, STR_BUF_SIZE, value);
-}
 
 static __always_inline int default_set_ret(struct sys_exit_args* ctx) {
     u64 tgid_pid;
@@ -133,26 +131,30 @@ static __always_inline int default_set_ret(struct sys_exit_args* ctx) {
 
 static __always_inline unsigned long get_inode_num(int fd) {
     unsigned long i_ino;
-    struct files_struct* files;
+    // struct files_struct* files;
     struct file **fd_array, *target_file;
-    struct inode* inode;
+    // struct inode* inode;
     struct fdtable* fdt;
     unsigned int max_fds;
+    int err;
 
     struct task_struct* task = (struct task_struct*)bpf_get_current_task();
-    bpf_probe_read(&files, sizeof(files), &(task->files));
-    bpf_probe_read(&fdt, sizeof(fdt), &(files->fdt));
-    bpf_probe_read(&max_fds, sizeof(max_fds), &fdt->max_fds);
+    err = BPF_CORE_READ_INTO(&max_fds, task, files, fdt, max_fds);
+    // bpf_probe_read(&files, sizeof(files), &(task->files));
+    // bpf_probe_read(&fdt, sizeof(fdt), &(files->fdt));
+    // bpf_probe_read(&max_fds, sizeof(max_fds), &fdt->max_fds);
 
-    if (max_fds <= fd) {
-        // bpf_printk("Invalid fd %d, with max_fds %d\n", fd, max_fds);
+    if (max_fds <= fd || err) {
         return 0;
     }
+    err = BPF_CORE_READ_INTO(&fd_array, task, files, fdt, fd);
+    err = bpf_core_read(&target_file, sizeof(target_file), &fd_array[fd]);
+    err = BPF_CORE_READ_INTO(&i_ino, target_file, f_inode, i_ino);
 
-    bpf_probe_read(&fd_array, sizeof(fd_array), &(fdt->fd));
-    bpf_probe_read(&target_file, sizeof(target_file), &fd_array[fd]);
-    bpf_probe_read(&inode, sizeof(inode), &target_file->f_inode);
-    bpf_probe_read(&i_ino, sizeof(i_ino), &inode->i_ino);
+    // bpf_probe_read(&fd_array, sizeof(fd_array), &(fdt->fd));
+    // bpf_probe_read(&target_file, sizeof(target_file), &fd_array[fd]);
+    // bpf_probe_read(&inode, sizeof(inode), &target_file->f_inode);
+    // bpf_probe_read(&i_ino, sizeof(i_ino), &inode->i_ino);
 
     return i_ino;
 }

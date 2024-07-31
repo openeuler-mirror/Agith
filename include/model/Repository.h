@@ -9,6 +9,7 @@
 #include "BPF/map_user.h"
 #include "tool/Log.h"
 #include "graph/Node.h"
+#include "graph/ProcessNode.h"
 
 class Repository {
 public:
@@ -21,6 +22,8 @@ public:
     void stop();
     void set_signal(unsigned int signal);
     void clear_signal(unsigned int signal);
+    void handle_docker(std::vector<std::string> containers, pid_t tgid, int syscall_id, const std::string& operation);
+    std::vector<std::string> extractContainerNames(const std::string& cmd, const std::string& operation);
 
 private:
     // 将无用数据输出
@@ -59,6 +62,7 @@ private:
     std::ofstream m_trace_file;
     std::string m_trace_file_path;
     std::vector<int> m_root_graph_id;
+    Json::Value docker_list;
 };
 
 #endif

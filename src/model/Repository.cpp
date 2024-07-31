@@ -8,7 +8,7 @@
 #include <regex>
 #include <json/json.h>
 #include <malloc.h>
-
+#include <iostream>
 #include "model/Repository.h"
 #include "model/Monitor.h"
 #include "tool/Manual.h"
@@ -17,10 +17,15 @@
 #include "graph/ProcessNode.h"
 #include "graph/SocketNode.h"
 #include "graph/PipeNode.h"
+#include "graph/ServiceNode.h"
 #include "tool/utils.h"
+#include <curl/curl.h>
+#include <regex>
+#include <future>
+#include <ctime>
 
 #define BUF_SIZE 40960
-
+#define DOCKER_TIME 5
 static std::shared_ptr<Repository> m_repository = nullptr;
 static std::once_flag create_flag;
 
@@ -46,6 +51,8 @@ void Repository::start() {
     struct timespec last_time_output = {0, 0};
     clock_gettime(CLOCK_MONOTONIC, &now);
     last_time_output = now;
+    //初始化docker list
+    // get_docker_list(docker_list);
 
     while ((m_signal & END_SIGNAL) == 0) {
         m_cv.wait(lock);
@@ -107,6 +114,7 @@ int Repository::fill_graph(struct Trace* trace) {
     ProcessNode* pnode;
     FileNode* fnode;
     SocketNode* socknode;
+    ServiceNode* snode;
     struct sockaddr_ipv4* addr;
     const char* filename = NULL;
     const char* data = NULL;
@@ -143,18 +151,43 @@ int Repository::fill_graph(struct Trace* trace) {
             break;
         case SYS_execve: {
             if (trace->ret == -1) break;
-            std::string name;
-            name = trace->str_data[0];
-            if (trace->str_data[1].size() != 0) {
-                name += " ";
-                name += trace->str_data[1];
+
+            //获取cmd，并把cmd分隔
+            std::string cmd = trace->arg_str;
+            pnode->execve(cmd.c_str());
+
+            std::vector<std::string> cmds;
+            std::istringstream iss(cmd);
+            std::string word;
+            while (iss >> word) {
+                cmds.push_back(word);
             }
-            if (trace->str_data[2].size() != 0) {
-                name += " ";
-                name += trace->str_data[2];
+
+            // 检测systemd命令
+            if (cmds.size() > 0 && strcmp(cmds[0].c_str(), "/usr/bin/systemctl") == 0) {
+                const char* operation = cmds[1].c_str();
+                const char* serviceName = cmds[2].c_str();
+                if (ServiceNode::have(serviceName)) {
+                    snode = ServiceNode::service_nodes[serviceName];
+                } else {
+                    snode = new ServiceNode(serviceName, ServiceNode::ServiceType::SYSTEMD_SERVICE);
+                    ServiceNode::service_nodes[serviceName] = snode;
+                }
+                Edge::add_edge(pnode, snode, trace->action, operation);
             }
-            filename = name.c_str();
-            pnode->execve(filename);
+            // 检测docker命令
+            else if (cmds.size() > 0 && strcmp(cmds[0].c_str(), "/usr/bin/docker") == 0) {
+                
+                const char* operation = cmds[1].c_str();
+                if (strcmp(operation, "start") == 0 || strcmp(operation, "stop") == 0 ||
+                    strcmp(operation, "run") == 0 || strcmp(operation, "kill") == 0) {
+                    std::vector<std::string> containers = extractContainerNames(cmd, operation);
+                    // 启动异步任务
+                    auto asyncTask = std::async(std::launch::async, &Repository::handle_docker, this, containers, tgid,
+                                                trace->action, operation);
+                    pnode->set_future(std::move(asyncTask));
+                }
+            }
             break;
         }
         case SYS_chdir:
@@ -249,6 +282,45 @@ int Repository::fill_graph(struct Trace* trace) {
             Edge::add_edge(pnode, fnode, SYS_openat);
             break;
         }
+        case SYS_copy_file_range: {
+            if (trace->ret < 0) break;
+            unsigned long i_ino_in = trace->obj.ops_copy_file_range.i_ino_in;
+            int fd_in = trace->obj.ops_copy_file_range.fd_in;
+            unsigned long i_ino_out = trace->obj.ops_copy_file_range.i_ino_out;
+            int fd_out = trace->obj.ops_copy_file_range.fd_out;
+            FileNode* fnode_in;
+            FileNode* fnode_out;
+            if (FileNode::have(i_ino_in)) {
+                fnode_in = FileNode::file_nodes[i_ino_in];
+            } else {
+                fnode_in = (FileNode*)pnode->add_fd_from_proc(fd_in);
+                if (fnode_in == NULL) {
+                    fnode_in = new FileNode(i_ino_in, "null");
+                    FileNode::file_nodes[i_ino_in] = fnode_in;
+                    pnode->add_fd(fd_in, fnode_in);
+                }
+            }
+            if (fnode_in == NULL) {
+                log_warn("[copy_file_range] can't find fnode_in");
+                break;
+            }
+            if (FileNode::have(i_ino_out)) {
+                fnode_out = FileNode::file_nodes[i_ino_out];
+            } else {
+                fnode_out = (FileNode*)pnode->add_fd_from_proc(fd_out);
+                if (fnode_out == NULL) {
+                    fnode_out = new FileNode(i_ino_out, "null");
+                    FileNode::file_nodes[i_ino_out] = fnode_out;
+                }
+            }
+            if (fnode_out == NULL) {
+                log_warn("[copy_file_range] can't find fnode_out");
+                break;
+            }
+            Edge::add_edge(pnode, fnode_in, SYS_read);
+            Edge::add_edge(pnode, fnode_out, SYS_write);
+            break;
+        }
         case SYS_renameat2: {
             if (trace->ret < 0) break;
             unsigned long old_i_ino = trace->obj.ops_rename.old_i_ino;
@@ -319,6 +391,29 @@ int Repository::fill_graph(struct Trace* trace) {
             Edge::add_edge(socknode, pnode, SYS_recvfrom, data);
             break;
         }
+        case SYS_writev: {
+            if (trace->ret == -1) break;
+            std::string str = trace->str_data[0];
+            std::string cmd = pnode->get_cmd();
+            if (str.find("Failed to") == 0 && cmd.find("/usr/bin/systemctl") == 0) {
+                pnode->remove_service_node();
+            }
+            break;
+        }
+        case SYS_finit_module:
+        case SYS_delete_module: {
+            if (trace->ret < 0) break;
+            std::string serviceName = trace->str_data[0];
+
+            if (ServiceNode::have(serviceName)) {
+                snode = ServiceNode::service_nodes[serviceName];
+            } else {
+                snode = new ServiceNode(serviceName, ServiceNode::ServiceType::MODULE_SERVICE);
+                ServiceNode::service_nodes[serviceName] = snode;
+            }
+            Edge::add_edge(pnode, snode, trace->action);
+            break;
+        }
     }
     return 0;
 }
@@ -361,7 +456,7 @@ int Repository::add_root_pid(unsigned int root_pid) {
         return -1;
     }
 
-    pnode->set_file_id(m_cypher_file_path.size()-1);
+    pnode->set_file_id(m_cypher_file_path.size() - 1);
 
     return 0;
 }
@@ -411,7 +506,7 @@ int Repository::init(Json::Value config) {
     snprintf(path, PATH_MAX, "%s/%s.trace", dir_path.c_str(), now_str);
     m_trace_file_path = path;
     m_trace_file.open(path, std::ios::out);
-    if(!m_trace_file.is_open()) {
+    if (!m_trace_file.is_open()) {
         log_error("can't open file %s", path);
         return -1;
     }
@@ -448,8 +543,8 @@ int Repository::init(Json::Value config) {
 
 int Repository::output_part(unsigned int max_output_num) {
     std::map<unsigned int, ProcessNode*>::iterator it_node;
-    std::deque<Edge *>* edge_list;
-    std::deque<Edge *>::iterator it_edge;   
+    std::deque<Edge*>* edge_list;
+    std::deque<Edge*>::iterator it_edge;
     ProcessNode* pnode;
     Edge* edge;
     struct Trace* trace;
@@ -463,7 +558,7 @@ int Repository::output_part(unsigned int max_output_num) {
         m_trace_file << buf << std::endl;
         delete trace;
         m_trace_repo.pop_front();
-        output_num += 1;    
+        output_num += 1;
     }
 
     // 让Monitor先处理完缓存任务。因为之后将释放部分节点与边，防止访问非法地址
@@ -471,13 +566,12 @@ int Repository::output_part(unsigned int max_output_num) {
 
     for (it_node = ProcessNode::process_nodes.begin(); it_node != ProcessNode::process_nodes.end();) {
         pnode = it_node->second;
-        if (pnode->get_exit_time() == 0) {
+        if (pnode->get_exit_time() == 0 || pnode->is_future_ready() == false) {
             it_node++;
             continue;
         }
-
         edge_list = pnode->get_edge();
-        for (it_edge = edge_list->begin();it_edge != edge_list->end();it_edge++) {
+        for (it_edge = edge_list->begin(); it_edge != edge_list->end(); it_edge++) {
             edge = *it_edge;
             output_edge(edge);
             output_num += 1;
@@ -499,10 +593,8 @@ int Repository::output_part(unsigned int max_output_num) {
 }
 
 int Repository::output_all() {
-
     char buf[BUF_SIZE];
     char path[PATH_MAX];
-    struct Trace* trace;
 
     // 控制输出速率，防止CPU超标
     while (output_part(m_config["max_output_trace"].asUInt()) != 0) {
@@ -528,6 +620,10 @@ int Repository::output_all() {
         pipe_node.second->to_cypher(buf, BUF_SIZE);
         output_node(pipe_node.second, buf);
     }
+    for (auto service_node : ServiceNode::service_nodes) {
+        service_node.second->to_cypher(buf, BUF_SIZE);
+        output_node(service_node.second, buf);
+    }
 
     for (auto edge : Edge::edges) {
         output_edge(edge.second);
@@ -538,7 +634,7 @@ int Repository::output_all() {
         m_cypher_file_bak[i]->close();
         delete m_cypher_file[i];
         delete m_cypher_file_bak[i];
-        snprintf(path, PATH_MAX, "%s.bak", m_cypher_file_path[i].c_str());        
+        snprintf(path, PATH_MAX, "%s.bak", m_cypher_file_path[i].c_str());
         snprintf(buf, BUF_SIZE, "cat %s >> %s", path, m_cypher_file_path[i].c_str());
 
         if (system(buf)) {
@@ -547,7 +643,7 @@ int Repository::output_all() {
 
         if (remove(path)) {
             log_warn("fail to delete cypher backup file %s", path);
-        }        
+        }
     }
 
     m_cypher_file.clear();
@@ -561,7 +657,7 @@ int Repository::output_node(Node* node, char* buf) {
     std::set<unsigned int>* file_id = node->get_file_id();
     std::set<unsigned int>::iterator it1 = file_id->begin();
 
-    for(it1 = file_id->begin();it1 != file_id->end();it1++) {
+    for (it1 = file_id->begin(); it1 != file_id->end(); it1++) {
         if (*it1 >= m_cypher_file.size()) {
             log_error("file id exceed the size of cypher file");
             continue;
@@ -579,13 +675,13 @@ int Repository::output_edge(Edge* edge) {
     edge->set_risk_level();
     edge->to_cypher(buf, BUF_SIZE);
 
-    for(it = file_id->begin();it!= file_id->end(); it++) {
+    for (it = file_id->begin(); it != file_id->end(); it++) {
         if (*it >= m_cypher_file_bak.size()) {
             log_error("file id exceed the size of cypher backup file");
             continue;
         }
         *m_cypher_file_bak[*it] << buf << std::endl;
-    }    
+    }
     return 0;
 }
 
@@ -595,7 +691,7 @@ void Repository::set_signal(unsigned int signal) {
 }
 
 void Repository::clear_signal(unsigned int signal) {
-    m_signal &=~ signal;
+    m_signal &= ~signal;
 }
 
 void Repository::show_memory(const char* info) {
@@ -696,4 +792,148 @@ int Repository::swap_map() {
 
     malloc_trim(0);
     return 0;
+}
+// 通过cmd提取docker容器名称
+std::vector<std::string> Repository::extractContainerNames(const std::string& cmd, const std::string& operation) {
+    std::regex start_re(R"(docker\s+start\s+(?:-[a-zA-Z]\s+|--\S+\s+)*(\S+(?:\s+\S+)*))");
+    std::regex stop_re(
+        R"(docker\s+(?:stop|kill)\s+(?:-[a-zA-Z]\s+\S+\s*|--\S+\s*=\s*\S+\s*|--\S+\s+\S+\s*)*(\S+(?:\s+\S+)*))");
+    std::vector<std::string> words;
+
+    // 针对start和stop命令，执行的操作一样
+    if (strcmp(operation.c_str(), "start") == 0 || strcmp(operation.c_str(), "stop") == 0 ||
+        strcmp(operation.c_str(), "kill") == 0) {
+        std::regex re;
+        if (strcmp(operation.c_str(), "start") == 0)
+            re = start_re;
+        else
+            re = stop_re;
+        std::smatch match;
+        // 通过正则表达式匹配
+        if (std::regex_search(cmd, match, re)) {
+            std::string containers = match[1].str();
+            std::istringstream iss(containers);
+            std::string word;
+            while (iss >> word) {
+                words.push_back(word);
+            }
+        }
+    } else if (strcmp(operation.c_str(), "run") == 0) {
+        // 针对Run命令过于复杂，不使用正则表达式的方法，将命令分隔，所有可能的“image name”都纳入考虑
+        std::istringstream iss(cmd);
+        std::string word;
+        while (iss >> word) {
+            if (word == "docker" || word == "run" || word[0] == '-' || word.find('/') != std::string::npos ||
+                word.find('=') != std::string::npos) {
+                continue;
+            }
+            words.push_back(word);
+        }
+    }
+    return words;
+}
+
+void Repository::handle_docker(std::vector<std::string> containers, pid_t tgid, int syscall_id,
+                               const std::string& operation) {
+    Json::Value docker_list;
+    ServiceNode* snode;
+    Json::Value docker_value;
+    std::string docker_name;
+    std::string docker_id;
+    std::string docker_status;
+    bool flag = false;
+    docker_list = get_docker_list();
+
+    if (ProcessNode::process_nodes.find(tgid) == ProcessNode::process_nodes.end()) {
+        return;
+    }
+    ProcessNode* pnode = ProcessNode::process_nodes[tgid];
+
+    // 针对docker start\stop命令
+    if (strcmp(operation.c_str(), "start") == 0 || strcmp(operation.c_str(), "stop") == 0 ||
+        strcmp(operation.c_str(), "kill") == 0) {
+        // 将读取到的docker list 按照key=name value=docker 和 key=id value=docker方式存储
+        std::map<std::string, Json::Value> docker_map_name;
+        std::map<std::string, Json::Value> docker_map_id;
+        for (const auto& item : docker_list) {
+            std::string id = item["Id"].asString().substr(0, 12);
+            std::string name = item["Names"][0].asString().substr(1);
+            docker_map_id[id] = item;
+            docker_map_name[name] = item;
+        }
+
+        for (auto& container : containers) {
+            if (docker_map_id.find(container) == docker_map_id.end() &&
+                docker_map_name.find(container) == docker_map_name.end())
+                continue;
+            docker_value = docker_map_name.find(container) == docker_map_name.end() ? docker_map_id.at(container)
+                                                                                    : docker_map_name.at(container);
+            docker_name = docker_value["Names"][0].asString().substr(1);
+            docker_id = docker_value["Id"].asString();
+            docker_status = docker_value["Status"].asString();
+            //判断Status启动时间 超过5s的认定为非本次命令操作
+            std::regex run_re("Up (\\d+) (second|seconds)");
+            std::regex stop_re("Exited \\((\\d+)\\) (\\d+) (second|seconds) ago");
+            std::smatch match;
+            if (strcmp(operation.c_str(), "start") == 0) {
+                // 处理启动命令
+                // 针对长久运行容器
+                if (strcmp(docker_value["State"].asString().c_str(), "running") == 0 &&
+                    std::regex_search(docker_status, match, run_re)) {
+                    int time = std::stoi(match[1]);
+                    std::string unit = match[2];
+                    if (time < DOCKER_TIME) flag = true;
+                }
+                // 针对短期运行容器 执行完就退出
+                else if (strcmp(docker_value["State"].asString().c_str(), "exited") == 0 &&
+                         std::regex_search(docker_status, match, stop_re)) {
+                    int time = std::stoi(match[2]);
+                    if (time < DOCKER_TIME) flag = true;
+                }
+            } else {
+                if (strcmp(docker_value["State"].asString().c_str(), "exited") == 0 &&
+                    std::regex_search(docker_status, match, stop_re)) {
+                    int time = std::stoi(match[2]);
+                    if (time < DOCKER_TIME) flag = true;
+                }
+            }
+        }
+
+    }
+    //针对docker run命令
+    else if (strcmp(operation.c_str(), "run") == 0) {
+        std::map<std::string, Json::Value> docker_map_image;
+        std::map<std::string, int> image_count;  //为了区别相同容器名称
+
+        //倒序遍历，目的是防止有相同image容器，确保最新可以覆盖旧的
+        for (Json::ArrayIndex i = docker_list.size(); i-- > 0;) {
+            std::string image = docker_list[i]["Image"].asString();
+            docker_map_image[image] = docker_list[i];
+        }
+        for (auto& container : containers) {
+            if (docker_map_image.find(container) == docker_map_image.end()) continue;
+            docker_value = docker_map_image.at(container);
+            docker_name = docker_value["Names"][0].asString().substr(1);
+            docker_id = docker_value["Id"].asString();
+            docker_status = docker_value["Status"].asString();
+            std::string create_time = docker_value["Created"].asString();
+            std::time_t timestamp = std::stoll(create_time);
+            std::time_t current_time = std::time(nullptr);
+            double seconds_diff = std::difftime(current_time, timestamp);
+            if (seconds_diff < DOCKER_TIME) {
+                flag = true;
+                break;
+            }
+        }
+    }
+    if (flag) {
+        // ProcessNode *pnode = ProcessNode::process_nodes[tgid];
+        if (ServiceNode::have(docker_name)) {
+            snode = ServiceNode::service_nodes[docker_name];
+        } else {
+            snode = new ServiceNode(docker_name,ServiceNode::ServiceType::DOCKER_SERVICE,docker_id);
+            ServiceNode::service_nodes[docker_name] = snode;
+        }
+        Edge::add_edge(pnode, snode, syscall_id, operation.c_str());
+    }
 }

@@ -9,6 +9,7 @@
 #define PROCESS_NODE 2
 #define SOCKET_NODE 3
 #define PIPE_NODE 4
+#define SERVICE_NODE 5
 
 class Edge;
 class Node {

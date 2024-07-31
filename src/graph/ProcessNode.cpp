@@ -4,6 +4,7 @@
 #include "graph/ProcessNode.h"
 #include "graph/PipeNode.h"
 #include "graph/Edge.h"
+#include "graph/ServiceNode.h"
 #include "tool/utils.h"
 
 std::map<unsigned int, ProcessNode*> ProcessNode::process_nodes = std::map<unsigned int, ProcessNode*>();
@@ -324,7 +325,7 @@ SocketNode* ProcessNode::connect(int fd, struct sockaddr_ipv4* addr) {
         SocketNode::socket_nodes[*addr] = socknode;
     }
     add_fd(fd, socknode);
-    return socknode;    
+    return socknode;
 }
 
 int ProcessNode::to_json(Json::Value& value) {
@@ -375,4 +376,35 @@ int ProcessNode::to_cypher(char* buf, int buf_size) {
 
 unsigned int ProcessNode::get_pid() {
     return m_pid;
+}
+
+int ProcessNode::remove_service_node() {
+    std::deque<Edge*>* edge_list = get_edge();
+    std::deque<Edge*>::iterator it_edge;
+    Edge* edge;
+    Node* node;
+    for (it_edge = edge_list->begin(); it_edge != edge_list->end(); it_edge++) {
+        edge = *it_edge;
+        node = edge->get_second();
+        int type = node->get_node_type();
+        if (type == SERVICE_NODE) {
+            ServiceNode::service_nodes.erase(((ServiceNode*)node)->get_service_name());
+        }
+    }
+    return 0;
+}
+
+void ProcessNode::set_future(std::future<void> future){
+    m_future = std::move(future);
+}
+
+bool ProcessNode::is_future_ready(){    
+      if (!m_future.valid()) {
+            return true; // Future is empty
+        }
+        // Check if the future is ready
+        if (m_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+            return true;
+        }
+        return false;
 }

@@ -2,6 +2,8 @@
 #define __MAP_SHARED_H
 
 #define STR_BUF_SIZE 128
+#define MAX_ARG 15
+#define MAX_ARG_LENGTH 512
 
 #ifndef CPU_NUM
     #define CPU_NUM 16
@@ -21,6 +23,7 @@ union object {
         unsigned long i_ino;
         unsigned long dfd;
         unsigned long fd;
+        struct dentry* dentry;
     } file;
 
     struct socket_ops {
@@ -63,6 +66,14 @@ union object {
         unsigned long fd;
         unsigned long cmd;
     } ops_fcntl;
+
+    struct copy_file_rang_ops {
+        unsigned long i_ino_in;
+        unsigned long i_ino_out;
+        unsigned long fd_in;
+        unsigned long fd_out;
+
+    } ops_copy_file_range;
 };
 
 struct pid_syscall_key {

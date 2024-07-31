@@ -66,6 +66,9 @@ void Node::get_node_type(char* type) {
         case PIPE_NODE:
             strcpy(type, "Pipe");
             break;
+        case SERVICE_NODE:
+            strcpy(type, "Service");
+            break;
         default:
             strcpy(type, "Unknown");
             break;

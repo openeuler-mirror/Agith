@@ -1,6 +1,7 @@
 #ifndef __OPERATOR_H
 #define __OPERATOR_H
 #include <unistd.h>
+#include <string>
 #include <map>
 
 struct Command {

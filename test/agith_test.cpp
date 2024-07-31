@@ -8,6 +8,7 @@
 #include "tool/Manual.h"
 #include "graph/Edge.h"
 #include "graph/ProcessNode.h"
+#include "graph/ServiceNode.h"
 
 #define WAIT_TIME 200000  // micro second
 
@@ -47,7 +48,7 @@ void AgithTest::TearDownTestCase() {
 void AgithTest::SetUp() {}
 
 void AgithTest::TearDown() {
-    Repository::get_repository()->set_output_signal(OUTPUT_PART);
+    Repository::get_repository()->set_signal(OUTPUT_USELESS);
 }
 
 TEST_F(AgithTest, mkdir) {
@@ -66,8 +67,6 @@ TEST_F(AgithTest, mkdir) {
         edge = item.second;
         if (edge->get_syscall_num(SYS_mkdir) > 0) {
             pnode = (ProcessNode*)edge->get_first();
-            printf(pnode->get_cmd());
-            printf("aaa\n");
             if (strcmp(pnode->get_cmd(), "/usr/bin/mkdir test") == 0) {
                 condition = true;
                 break;
@@ -245,6 +244,8 @@ TEST_F(AgithTest, copy) {
         if (edge->get_syscall_num(SYS_openat) > 0 && edge->get_syscall_num(SYS_read) > 0) {
             pnode = (ProcessNode*)edge->get_first();
             fnode = (FileNode*)edge->get_second();
+            printf("file_path: %s, fnode:%s\n", file_path1, fnode->get_pathname());
+
             if (strcmp(fnode->get_pathname(), file_path1) == 0 &&
                 strcmp(pnode->get_cmd(), "/usr/bin/cp test.txt test.txt.bak") == 0) {
                 condition1 = true;
@@ -254,6 +255,8 @@ TEST_F(AgithTest, copy) {
         if (edge->get_syscall_num(SYS_write) > 0 && edge->get_syscall_num(SYS_openat) > 0) {
             pnode = (ProcessNode*)edge->get_first();
             fnode = (FileNode*)edge->get_second();
+            printf("fnode:%s\n", fnode->get_pathname());
+            // printf("pnode:%s\n", pnode->get_cmd());
             if (strcmp(fnode->get_pathname(), file_path2) == 0 &&
                 strcmp(pnode->get_cmd(), "/usr/bin/cp test.txt test.txt.bak") == 0) {
                 condition2 = true;
@@ -398,6 +401,49 @@ TEST_F(AgithTest, connect_sendto_recvfrom) {
 
     if (edge_send->get_second() != edge_recv->get_first()) {
         FAIL() << "send and recv is not pair";
+    }
+    SUCCEED();
+}
+
+TEST_F(AgithTest, systemd_test) {
+    Edge* edge_start = NULL;
+    Edge* edge_stop = NULL;
+    Edge* edge;
+    ServiceNode* service_node;
+
+    std::map<std::pair<Node*, Node*>, Edge*>::iterator it;
+
+    Operator* mike = Operator::call_operator("Mike");
+    if (mike == NULL) {
+        FAIL() << "can't find operator\n";
+    }
+
+    mike->run("systemctl start firewalld");
+    usleep(WAIT_TIME);
+    mike->run("systemctl stop firewalld");
+    usleep(WAIT_TIME);
+    Consumer::get_consumer()->notify();
+
+    for (it = Edge::edges.begin(); it != Edge::edges.end(); it++) {
+        edge = it->second;
+        if (edge->get_syscall_num(SYS_execve) > 0) {
+            if (edge->get_msg() != NULL && strcmp(edge->get_msg(), "start") == 0) {
+                edge_start = edge;
+            }
+            if (edge->get_msg() != NULL && strcmp(edge->get_msg(), "stop") == 0) {
+                edge_stop = edge;
+            }
+        }
+    }
+    if (edge_start == NULL) {
+        FAIL() << "systemctl start not found";
+    }
+    if (edge_stop == NULL) {
+        FAIL() << "systemctl stop not found";
+    }
+    service_node = (ServiceNode*)edge_start->get_second();
+    if (strcmp(service_node->get_service_name(), "firewalld") != 0) {
+        FAIL() << "service node not found";
     }
     SUCCEED();
 }

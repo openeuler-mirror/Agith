@@ -15,6 +15,7 @@ public:
     static log4cplus::Logger m_log;
 
     SocketNode(struct sockaddr_ipv4 *addr);
+    const struct sockaddr_ipv4 get_sockaddr_ipv4();
     
     virtual int to_json(Json::Value& value) override;
     virtual int to_cypher(char* buf, int buf_size) override;

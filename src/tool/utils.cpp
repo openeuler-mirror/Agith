@@ -11,6 +11,9 @@
 #include "graph/Edge.h"
 #include "graph/ProcessNode.h"
 #include "graph/PipeNode.h"
+#include "graph/ServiceNode.h"
+#include <curl/curl.h>
+#include <iostream>
 
 
 const char* help_info =
@@ -220,6 +223,11 @@ int delete_node(Node* node) {
             delete pipe_node;
             break;            
         }
+        case SERVICE_NODE:{
+            ServiceNode* service_node = (ServiceNode*)node;
+            delete service_node;
+            break;            
+        }
         default:
             printf("delete node fail, unknown type %d", node->get_node_type());
             return -1;
@@ -237,3 +245,58 @@ int delete_edge(Edge* edge) {
     delete edge;    
     return 0;
 }
+size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::string* s) {
+    size_t newLength = size * nmemb;
+    try {
+        s->append((char*)contents, newLength);
+    } catch (std::bad_alloc& e) {
+        // 内存分配失败
+        return 0;
+    }
+    return newLength;
+}
+Json::Value get_docker_list() {
+    // docker api
+    CURL* curl;
+    CURLcode res;
+    std::string readBuffer;
+    Json::Value docker_list;
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+
+    if (curl) {
+        // 设置URL
+        curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:2375/containers/json?all=true");
+
+        // 设置回调函数
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+
+        // 设置存储响应数据的字符串
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+
+        // 发送请求
+        res = curl_easy_perform(curl);
+
+        // 检查请求是否成功
+        if (res != CURLE_OK)
+            std::cerr << "CURL Docker failed, Make sure the Docker API port is open!" << std::endl;
+        else {
+            // 使用jsoncpp库解析JSON
+            Json::CharReaderBuilder readerBuilder;
+            Json::Value jsonData;
+            std::string errs;
+
+            std::istringstream s(readBuffer);
+            if (!Json::parseFromStream(readerBuilder, s, &docker_list, &errs)) {
+                std::cerr << "JSON parse failed: " << errs << std::endl;
+            }
+        }
+        // 清理
+        curl_easy_cleanup(curl);
+    }
+    curl_global_cleanup();
+    return docker_list;
+}
+
+

@@ -31,6 +31,7 @@ Controller::Controller() :
     m_os_cpu = get_os_cpu_time();
     m_my_cpu = get_proc_cpu_time(getpid());
     m_pid_file_fd = lock();
+    p_perf_buffer = NULL;
 }
 
 std::shared_ptr<Controller> Controller::get_controller() {
@@ -160,11 +161,6 @@ int Controller::init(Json::Value config) {
         return ret;
     }
 
-    if (m_config["clean_kprobe"].asBool()) {
-        log_info("clean all kprobe");
-        m_bpf_loader.clean_kprobe();
-    }
-
     m_config["cpu_num"] = sysconf(_SC_NPROCESSORS_ONLN);
 
     log_info("initialize dictionary...");
@@ -227,8 +223,7 @@ void handle_perf_event(void* ctx, int flag, void* event, __u32 data_size) {
 
 int Controller::init_perf_event() {
     m_perf_event_map_fd = m_bpf_loader.get_map_fd(PERF_EVENT_MAP);
-    m_perf_buf_opts.sample_cb = handle_perf_event;
-    p_perf_buffer = perf_buffer__new(m_perf_event_map_fd, 8, &m_perf_buf_opts);
+    p_perf_buffer = perf_buffer__new(m_perf_event_map_fd, 8, handle_perf_event, nullptr, nullptr, nullptr);
 
     if (libbpf_get_error(p_perf_buffer)) {
         log_error("Failed to create perf buffer");
@@ -244,9 +239,8 @@ int Controller::init_consumer() {
     int trace_ptr_fd = m_bpf_loader.get_map_fd(TRACE_PTR_MAP);
     int str1_fd = m_bpf_loader.get_map_fd(STR1_MAP);
     int str2_fd = m_bpf_loader.get_map_fd(STR2_MAP);
-    int str3_fd = m_bpf_loader.get_map_fd(STR3_MAP);
 
-    if (Consumer::get_consumer()->init(trace_fd, trace_ptr_fd, str1_fd, str2_fd, str3_fd)) {
+    if (Consumer::get_consumer()->init(trace_fd, trace_ptr_fd, str1_fd, str2_fd)) {
         return -1;
     }
 
@@ -388,7 +382,7 @@ int Controller::check_cpu_mem() {
 int Controller::lock() {
     int ret;
     struct flock lock;    
-    int buf_size = 10;
+    int buf_size = LONG_STR_SIZE;
     char buf[buf_size];
 
     m_pid_file_fd = open(m_pid_file_path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
@@ -416,7 +410,7 @@ int Controller::lock() {
 
 int Controller::unlock() {
     struct flock lock;
-    int buf_size = 10;
+    int buf_size = LONG_STR_SIZE;
     int ret;
 
     if (m_pid_file_fd < 0) {

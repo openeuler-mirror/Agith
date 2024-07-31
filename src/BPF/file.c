@@ -1,55 +1,11 @@
 #include "vmlinux.h"
 #include "utils.h"
 #include "syscall_args.h"
+#include "syscall.h"
 
 #define bpf_read(val, addr) bpf_probe_read(&val, sizeof(val), &addr);
 
 char LICENSE[] SEC("license") = "GPL";
-
-// SEC("tracepoint/syscalls/sys_enter_pread64")
-// int trace_enter_pread64(struct sys_enter_read_write_args* ctx) {
-//     u64 tgid_pid;
-//     u32 tgid, pid;
-//     struct trace* trace;
-//     unsigned long i_ino;
-//     u32 trace_ptr;
-//     int ret;
-
-//     tgid_pid = bpf_get_current_pid_tgid();
-//     tgid = tgid_pid >> 32;
-//     pid = (u32)tgid_pid;
-//     i_ino = get_inode_num(ctx->fd);
-//     if (!in_targets(&tgid_target_map, tgid) && !in_targets(&file_target_map, i_ino)) return 0;
-//     return 0;
-// }
-
-// SEC("tracepoint/syscalls/sys_exit_pread64")
-// int trace_exit_pread64(struct sys_exit_args* ctx) {
-//     return default_set_ret(ctx);
-// }
-
-// SEC("tracepoint/syscalls/sys_enter_pwrite64")
-// int trace_enter_pwrite64(struct sys_enter_read_write_args* ctx) {
-//     u64 tgid_pid;
-//     u32 tgid, pid;
-//     struct trace* trace;
-//     unsigned long i_ino;
-//     u32 trace_ptr;
-//     int ret;
-
-//     tgid_pid = bpf_get_current_pid_tgid();
-//     tgid = tgid_pid >> 32;
-//     pid = (u32)tgid_pid;
-//     i_ino = get_inode_num(ctx->fd);
-//     if (!in_targets(&tgid_target_map, tgid) && !in_targets(&file_target_map, i_ino)) return 0;
-
-//     return 0;
-// }
-
-// SEC("tracepoint/syscalls/sys_exit_pwrite64")
-// int trace_exit_pwrite64(struct sys_exit_args* ctx) {
-//     return default_set_ret(ctx);
-// }
 
 // file: fd, i_ino
 SEC("tracepoint/syscalls/sys_enter_read")
@@ -202,7 +158,7 @@ int kprobe_vfs_rename(struct pt_regs* ctx) {
     struct trace* trace;
     u32* trace_ptr;
     int ret;
-    u32 syscall_nr = 316;
+    u32 syscall_nr = SYS_renameat2;
     struct dentry* dentry;
     struct inode* inode;
     u64 i_ino;
@@ -325,7 +281,7 @@ int kprobe_enter_chmod_common(struct pt_regs* ctx) {
     struct trace* trace;
     u32* trace_ptr;
     int ret;
-    u32 syscall_nr = 268;
+    u32 syscall_nr = SYS_fchmodat;
     struct path* path;
     struct dentry* dentry;
     struct inode* inode;
@@ -385,18 +341,15 @@ int trace_enter_mkdir(struct sys_enter_mkdir_args* ctx) {
     return 0;
 }
 
-// Only for mkdir(83), need to change implementation if necessary
-SEC("kprobe/done_path_create")
-int kprobe_enter_done_path_create(struct pt_regs* ctx) {
+//监控vfs_mkdir，在进入时获取dentry的地址，在函数结束时获取产生的inode
+SEC("kprobe/vfs_mkdir")
+int kprobe_enter_vfs_mkdir(struct pt_regs* ctx) {
     u64 tgid_pid;
     u32 pid, tgid;
     struct trace* trace;
     u32* trace_ptr;
-    int ret;
-    u32 syscall_nr = 83;
+    u32 syscall_nr = SYS_mkdir;
     struct dentry* dentry;
-    struct inode* inode;
-    u64 i_ino;
 
     tgid_pid = bpf_get_current_pid_tgid();
     tgid = tgid_pid >> 32;
@@ -408,10 +361,30 @@ int kprobe_enter_done_path_create(struct pt_regs* ctx) {
     if (trace == NULL) return 0;
 
     dentry = (struct dentry*)PT_REGS_PARM2(ctx);
-    bpf_read(inode, dentry->d_inode);
-    bpf_read(i_ino, inode->i_ino);
-    trace->obj.file.i_ino = i_ino;
+    trace->obj.file.dentry = dentry;
+    return 0;
+}
+SEC("kretprobe/vfs_mkdir")
+int kprobe_exit_vfs_mkdir(struct pt_regs* ctx) {
+    u64 tgid_pid;
+    u32 pid, tgid;
+    struct trace* trace;
+    u32* trace_ptr;
+    u32 syscall_nr = SYS_mkdir;
+    struct dentry* dentry;
+    u64 i_ino;
 
+    tgid_pid = bpf_get_current_pid_tgid();
+    tgid = tgid_pid >> 32;
+    pid = (u32)tgid_pid;
+
+    trace_ptr = get_trace_map_key(pid, syscall_nr);
+    if (trace_ptr == NULL) return 0;
+    trace = bpf_map_lookup_elem(&trace_map, trace_ptr);
+    if (trace == NULL) return 0;
+
+    dentry = (struct dentry*)trace->obj.file.dentry;
+    trace->obj.file.i_ino = BPF_CORE_READ(dentry, d_inode, i_ino);
     return 0;
 }
 
@@ -483,14 +456,15 @@ int trace_enter_unlinkat(struct sys_enter_unlinkat_args* ctx) {
     return 0;
 }
 
-SEC("kprobe/vfs_rmdir")
+// SEC("kprobe/vfs_rmdir")
+SEC("kprobe/security_inode_rmdir")
 int kprobe_vfs_rmdir(struct pt_regs* ctx) {
     u64 tgid_pid;
     u32 tgid, pid;
     u32* trace_ptr;
     struct trace* trace;
     int ret;
-    u32 syscall_nr = 263;
+    u32 syscall_nr = SYS_unlinkat;
     struct dentry* dentry;
     struct inode* inode;
     u64 i_ino;
@@ -519,7 +493,7 @@ int kprobe_vfs_unlink(struct pt_regs* ctx) {
     u32* trace_ptr;
     struct trace* trace;
     int ret;
-    u32 syscall_nr = 263;
+    u32 syscall_nr = SYS_unlinkat;
     struct dentry* dentry;
     struct inode* inode;
     u64 i_ino;
@@ -608,14 +582,14 @@ int trace_enter_utimesat(struct sys_enter_utimensat_args* ctx) {
 // kprobe: utimes_common(const struct path *path, struct timespec64 *times)
 // corrsponding to syscall: `utime`, `utimensat`, `utimes`.
 // Here to specify syscall_nr 280 (utimensat)
-SEC("kprobe/utimes_common")
+SEC("kprobe/vfs_utimes")
 int kprobe_enter_utimes(struct pt_regs* ctx) {
     u64 tgid_pid;
     u32 tgid, pid;
     u32* trace_ptr;
     struct trace* trace;
     int ret;
-    u32 syscall_nr = 280;  // usimensat
+    u32 syscall_nr = SYS_utimensat;  // usimensat
     struct path* path;
     struct dentry* dentry;
     struct inode* inode;
@@ -695,7 +669,6 @@ int trace_enter_openat(struct sys_enter_openat_args* ctx) {
     if (ret) {
         return 0;
     }
-
     trace->tgid = tgid;
     trace->action = ctx->syscall_nr;
     trace->ts = bpf_ktime_get_ns();
@@ -706,7 +679,7 @@ int trace_enter_openat(struct sys_enter_openat_args* ctx) {
 }
 
 SEC("tracepoint/syscalls/sys_exit_open")
-__always_inline int trace_exit_open(struct sys_exit_args* ctx) {
+int trace_exit_open(struct sys_exit_args* ctx) {
     u64 tgid_pid;
     u32 pid, tgid;
     struct trace* tr;
@@ -740,7 +713,35 @@ __always_inline int trace_exit_open(struct sys_exit_args* ctx) {
 
 SEC("tracepoint/syscalls/sys_exit_openat")
 int trace_exit_openat(struct sys_exit_args* ctx) {
-    return trace_exit_open(ctx);
+    u64 tgid_pid;
+    u32 pid, tgid;
+    struct trace* tr;
+    u32* trace_ptr;
+    int ret;
+
+    tgid_pid = bpf_get_current_pid_tgid();
+    pid = (u32)tgid_pid;
+    tgid = tgid_pid >> 32;
+    trace_ptr = get_trace_map_key(pid, ctx->syscall_nr);
+    if (trace_ptr == NULL) {
+        return 0;
+    }
+
+    tr = bpf_map_lookup_elem(&trace_map, trace_ptr);
+    if (tr == NULL) {
+        return 0;
+    }
+    tr->obj.file.fd = ctx->ret;
+    tr->obj.file.i_ino = get_inode_num(ctx->ret);
+    tr->ret = ctx->ret;
+    if (ctx->ret < 0) {
+        tr->ready = 2;
+    } else {
+        tr->ready = 1;
+    }
+    delete_trace_map_key(pid, ctx->syscall_nr);
+
+    return 0;
 }
 
 // TODO: is dup also needed?
@@ -864,3 +865,71 @@ int trace_enter_close(struct sys_enter_close_args* ctx) {
 // int trace_exit_close(struct sys_exit_args* ctx) {
 //     return default_set_ret(ctx);
 // }
+SEC("tracepoint/syscalls/sys_enter_copy_file_range")
+int trace_enter_copy_file_range(struct sys_enter_copy_file_range_args* ctx) {
+    u64 tgid_pid;
+    u32 tgid, pid;
+    u32 trace_ptr;
+    unsigned long i_ino_in;
+    unsigned long i_ino_out;
+    struct trace* trace;
+    int ret;
+    tgid_pid = bpf_get_current_pid_tgid();
+    tgid = tgid_pid >> 32;
+    pid = (u32)tgid_pid;
+
+    if (!in_targets(&tgid_target_map, tgid)) return 0;
+    ret = create_trace(&trace, &trace_ptr);
+    if (ret) {
+        bpf_printk("[sys_enter_copy_file_range] get trace map failed");
+        return 0;
+    }
+
+    trace->tgid = tgid;
+    trace->action = ctx->syscall_nr;
+    trace->ts = bpf_ktime_get_ns();
+    trace->obj.ops_copy_file_range.fd_in = ctx->fd_in;
+    trace->obj.ops_copy_file_range.fd_out = ctx->fd_out;
+    trace->obj.ops_copy_file_range.i_ino_in = get_inode_num(ctx->fd_in);
+    trace->obj.ops_copy_file_range.i_ino_out = get_inode_num(ctx->fd_out);
+    set_trace_map_key(pid, ctx->syscall_nr, trace_ptr);
+    return 0;
+}
+SEC("tracepoint/syscalls/sys_exit_copy_file_range")
+int trace_exit_copy_file_range(struct sys_exit_args* ctx) {
+    return default_set_ret(ctx);
+}
+
+SEC("tracepoint/syscalls/sys_enter_writev")
+int trace_enter_writev(struct sys_enter_writev_args* ctx) {
+    u64 tgid_pid;
+    u32 tgid, pid;
+    u32 trace_ptr;
+    struct trace* trace;
+    int ret;
+
+    tgid_pid = bpf_get_current_pid_tgid();
+    tgid = tgid_pid >> 32;
+    pid = (u32)tgid_pid;
+
+    if (!in_targets(&tgid_target_map, tgid)) return 0;
+    ret = create_trace(&trace, &trace_ptr);
+    if (ret) {
+        bpf_printk("[sys_enter_writev] get trace map failed");
+        return 0;
+    }
+
+    void* iovbase;
+    bpf_read(iovbase, ctx->vec->iov_base);
+    set_str1(trace_ptr, iovbase);
+    trace->tgid = tgid;
+    trace->action = ctx->syscall_nr;
+    trace->ts = bpf_ktime_get_ns();
+    set_trace_map_key(pid, ctx->syscall_nr, trace_ptr);
+    return 0;
+}
+
+SEC("tracepoint/syscalls/sys_exit_writev")
+int trace_exit_writev(struct sys_exit_args* ctx) {
+    return default_set_ret(ctx);
+}

@@ -4,3 +4,5 @@ build/*
 rpmbuild
 *.tar.gz
 temp
+.vscode
+src/BPF/vmlinux.h

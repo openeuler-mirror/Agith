@@ -85,7 +85,7 @@ BPF 文件夹对应[系统架构](#4-系统架构)的 eBPF 模块。各个文件
 |socket.c|与网络相关的探针程序|
 |syscall_args.h|系统调用的参数，参考/sys/kernel/debug/tracing/events/syscalls 中各个系统调用的 format 文件|
 |utils.h|通用函数，例如申请 trace 空间，默认返回函数，删除监控目标等操作|
-|vmlinux.h|集成内核头文件，与内核版本相关|
+|vmlinux.h|集成内核头文件，与内核版本相关。代码仓不提供该文件，在编译过程中由命令生成。|
 
 graph 是 repository 绘制图过程中需要的类。图包含两个要素 Edge（边）与 Node（节点）。其中 Node 是一个抽象类。根据不同的节点类型，派生了 FileNode、PipeNode、ProcessNode、SocketNode，分别表示文件节点、管道节点、进程节点、网络节点。
 
@@ -98,13 +98,17 @@ tool 是程序主业务之外的功能类。
 
 ## 6. 安装与使用指导
 
-Agith 可以通过 rpm 安装到 bin 目录，也可以通过源码自行编译安装。Agith 运行编译依赖如下。
+Agith 支持通过源码自行编译安装和Docker打包执行使用。
 
-**6.1 操作系统**：
+**运行环境:**
 
-推荐使用 openEuler 20.03 版本（内核版本 4.18~19）。其他 linux 发行版未经测试。openEuler 更高版本，例如 22 版以上，由于内核版本高于 4.18，会导致内核数据结构不适配。这个问题会在下一个版本修复。
+main分支推荐使用 openEuler 20.03 版本（内核版本 4.18~19）。其他 linux 发行版未经测试。
 
-**6.2 Agith 运行依赖库**：
+5.10 分支推荐使用openEuler 22.03 版本（内核版本 5.10）。
+
+### 6.1 编译运行
+
+**6.1.1 Agith 运行依赖库**：
 
 | 依赖库名称 | 版本  |
 | ---------- | ----- |
@@ -113,7 +117,7 @@ Agith 可以通过 rpm 安装到 bin 目录，也可以通过源码自行编译�
 | log4cplus  | 2.0.5 |
 | libbpf     | 0.1.1 |
 
-**6.3 Agith 编译依赖库**：
+**6.1.2 Agith 编译依赖库**：
 
 | 依赖库名称      | 版本   |
 | --------------- | ------ |
@@ -129,14 +133,15 @@ Agith 可以通过 rpm 安装到 bin 目录，也可以通过源码自行编译�
 
 除以上配置外，其他版本未测试，欢迎补充。
 
-**6.4 Agith 启动参数**：
-|启动参数|含义|
-|---|---|
-|-p|初始目标进程的 PID|
-|-c|配置文件路径，默认路径/etc/Agith.conf|
-|-q|停止 Agith|
+**6.1.3 Agith 启动参数**：
 
-**6.5 Agith 编译方法**
+| 启动参数 | 含义                                  |
+| -------- | ------------------------------------- |
+| -p       | 初始目标进程的 PID                    |
+| -c       | 配置文件路径，默认路径/etc/Agith.conf |
+| -q       | 停止 Agith                            |
+
+**6.1.4 Agith 编译方法**
 
 在 Agith 项目第一层目录下执行：
 
@@ -144,7 +149,48 @@ Agith 可以通过 rpm 安装到 bin 目录，也可以通过源码自行编译�
 ./build.sh compile
 ```
 
+默认不编译test相关程序，若需编译在根目录下CMakeList.txt文件结尾取消注释：
+
+```
+# enable_testing()
+# add_subdirectory(test)
+```
+
+### 6.2 Docker运行
+
+**镜像打包**
+
+在Agith 项目第一层目录下执行：
+
+```
+docker build -t agith .
+```
+
+**镜像执行**
+
+镜像打包完成后执行下方命令，请将your_path更改为宿主机映射目录（Agith监控产生的输出文件将映射到该目录），XXXX更改为要监控的目标pid：
+
+```
+docker run -it -v /your_path:/Agith/build/output --privileged --pid=host --workdir=/Agith/build/prod agith -p XXXX
+```
+
+
+
 ## 7. 配置文件说明
+
+| 配置项                            | 说明                                                         | 默认值                                                       |
+| --------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| Controller.max_memory             | 最大内存用量（MB）                                           | 100                                                          |
+| Controller.max_cpu                | 最大CPU单核利用率(百分数)                                    | 10                                                           |
+| Controller.check_cpu_mem_duration | 检查CPU利用率与内存的周期（秒）                              | 3                                                            |
+| Repository.output_dir             | 输出文件目录（更改此项后，若使用Docker运行方式请注意映射路径） | ../output                                                    |
+| Repository.file_save_time         | 文件保留时间（小时），0表示不删除旧文件                      | 72                                                           |
+| Repository.concern_syscalls       | 需要关注的系统调用，用于筛除不重要的节点来简化图             | ["write", "clone", "unlinkat", "unlink", "connect", "sendto", "recvfrom", "mkdir", "execve", "finit_module", "delete_module"] |
+| Repository.max_output_trace       | 每轮清理中写入文件的trace最大数目                            | 500                                                          |
+| Monitor.risk_syscalls             | 风险系统调用                                                 | ["write", "unlinkat", "unlink", "sendto"]                    |
+| BPFLoader.path                    | BPF文件路径                                                  | BPF                                                          |
+| Manual.path                       | 系统调用表路径                                               | ./config/syscall_64.tbl                                      |
+| Log.path                          | 日志文件路径                                                 | ./agith.log                                                  |
 
 ## 8. 性能测试
 
@@ -208,7 +254,7 @@ Agith 可以通过 rpm 安装到 bin 目录，也可以通过源码自行编译�
 
 ![开发计划](doc/plan.png)
 
-第二点是优化软件。例如适配内核 4.19 以上的版本。这需要修改 BPF 程序的加载模式，部分探针程序代码。
+第二点是优化软件。例如适配更高的内核版本。这需要修改 BPF 程序的加载模式，部分探针程序代码。
 
 ## 10. 开源许可协议
 
