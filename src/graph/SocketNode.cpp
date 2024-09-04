@@ -25,7 +25,7 @@ int SocketNode::to_json(Json::Value& value) {
     in_addr ip;
     ip.s_addr = m_addr.sin_addr;
     value["ip"] = inet_ntoa(ip);
-    value["port"] = m_addr.sin_port;
+    value["port"] = ntohs(m_addr.sin_port);
     value["type"] = m_node_type;
     value["graph_id"] = m_graph_id;
     value["family"] = m_addr.sin_family;
@@ -39,7 +39,7 @@ int SocketNode::to_cypher(char* buf, int buf_size) {
     ip.s_addr = m_addr.sin_addr;
     std::shared_ptr<Manual> book = Manual::get_manual();
     snprintf(buf, buf_size, "CREATE (:%s{graph_id:%d, family:\"%s\", ip:\"%s\", port:%d})",
-             node_type, m_graph_id, book->get_socket_family_name(m_addr.sin_family), inet_ntoa(ip), m_addr.sin_port);
+             node_type, m_graph_id, book->get_socket_family_name(m_addr.sin_family), inet_ntoa(ip), ntohs(m_addr.sin_port));
     return 0;
 }
 
