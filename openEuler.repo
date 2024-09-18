@@ -1,18 +1,18 @@
 [openEuler-everything]
 name=openEuler-everything
-baseurl=http://repo.huaweicloud.com/openeuler/openEuler-22.03-LTS-SP3/everything/x86_64/
+baseurl=http://repo.huaweicloud.com/openeuler/openEuler-24.03-LTS/everything/x86_64/
 enabled=1
 gpgcheck=0
-gpgkey=http://repo.huaweicloud.com/openeuler/openEuler-22.03-LTS-SP3/everything/x86_64/RPM-GPG-KEY-openEuler
+gpgkey=http://repo.huaweicloud.com/openeuler/openEuler-24.03-LTS/everything/x86_64/RPM-GPG-KEY-openEuler
  
 [openEuler-EPOL]
 name=openEuler-epol
-baseurl=http://repo.huaweicloud.com/openeuler/openEuler-22.03-LTS-SP3/EPOL/main/x86_64/
+baseurl=http://repo.huaweicloud.com/openeuler/openEuler-24.03-LTS/EPOL/main/x86_64/
 enabled=1
 gpgcheck=0
  
 [openEuler-update]
 name=openEuler-update
-baseurl=http://repo.huaweicloud.com/openeuler/openEuler-22.03-LTS-SP3/update/x86_64/
+baseurl=http://repo.huaweicloud.com/openeuler/openEuler-24.03-LTS/update/x86_64/
 enabled=1
 gpgcheck=0

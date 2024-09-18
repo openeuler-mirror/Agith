@@ -1,5 +1,5 @@
-# 基础镜像为 openeuler:22.03
-FROM openeuler/openeuler:22.03
+# 基础镜像为 openeuler:24.03
+FROM openeuler/openeuler:24.03
 
 COPY . /Agith
 RUN  rm -rf /etc/yum.repos.d/*
