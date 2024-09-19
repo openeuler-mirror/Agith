@@ -1,3 +1,4 @@
+#include <iostream>
 #include <unistd.h>
 #include <fcntl.h>
 #include <dirent.h>
@@ -313,16 +314,28 @@ FileNode* ProcessNode::renameat2(int oldfd, const char* oldfile, int newdfd, con
     }
     return file_node;
 }
-
-SocketNode* ProcessNode::connect(int fd, struct sockaddr_ipv4* addr) {
-    SocketNode* socknode;
+ //   SocketNode* connect(int fd, unsigned short sin_family,struct sockaddr_ipv4* addr,const char* unix_addr);
+SocketNode* ProcessNode::connect(int fd, unsigned short sin_family,struct sockaddr_ipv4* addr,const std::string unix_addr) {
+    SocketNode* socknode = nullptr;
     std::deque<SocketNode*>::iterator it;
+
     // 丢失socket系统调用，直接是connect系统调用。fd_table中没有，或者对应的节点不是socket。
-    if (SocketNode::have(addr)) {
-        socknode = SocketNode::socket_nodes[*addr];
-    } else {
-        socknode = new SocketNode(addr);
-        SocketNode::socket_nodes[*addr] = socknode;
+    if (sin_family == AF_INET)
+    {
+        if (SocketNode::have(addr)) {
+            socknode = SocketNode::ipv4_socket_nodes[*addr];
+        }else{
+            socknode = new SocketNode(sin_family,addr,unix_addr);
+            SocketNode::ipv4_socket_nodes[*addr] = socknode;
+        }  
+    }else if (sin_family == AF_UNIX)
+    {
+        if (SocketNode::unix_socket_have(unix_addr)) {
+            socknode = SocketNode::unix_socket_nodes[unix_addr];
+        }else{
+            socknode = new SocketNode(sin_family,addr,unix_addr);
+            SocketNode::unix_socket_nodes[unix_addr] = socknode;
+        }  
     }
     add_fd(fd, socknode);
     return socknode;

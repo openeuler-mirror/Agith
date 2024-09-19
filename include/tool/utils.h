@@ -19,4 +19,6 @@ unsigned int get_proc_mem(unsigned int pid);
 int delete_edge(Edge* edge);
 int delete_node(Node* node);
 Json::Value get_docker_list();
+std::string get_service_name_by_port(int port);
+std::string get_service_name_by_unix_socket(const std::string& socket_path);
 #endif

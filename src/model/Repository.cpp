@@ -113,7 +113,7 @@ int Repository::fill_graph(struct Trace* trace) {
     int dfd;
     ProcessNode* pnode;
     FileNode* fnode;
-    SocketNode* socknode;
+    SocketNode* socknode = nullptr;
     ServiceNode* snode;
     struct sockaddr_ipv4* addr;
     const char* filename = NULL;
@@ -358,10 +358,16 @@ int Repository::fill_graph(struct Trace* trace) {
             break;
         }
         case SYS_connect: {
+            std::string unix_addr = "";
             if (trace->ret == -1) break;
             fd = trace->obj.ops_connect.fd;
+            unsigned short sin_family = *reinterpret_cast<unsigned short*>(trace->obj.ops_connect.addr);
+            if (sin_family == AF_UNIX)
+            {
+                unix_addr = trace->str_data[0];
+            }
             addr = (struct sockaddr_ipv4*)&trace->obj.ops_connect.addr;
-            socknode = pnode->connect(fd, addr);
+            socknode = pnode->connect(fd,sin_family, addr, unix_addr);
             Edge::add_edge(pnode, socknode, SYS_connect);
             break;
         }
@@ -611,7 +617,11 @@ int Repository::output_all() {
         output_node(process_node.second, buf);
     }
 
-    for (auto socket_node : SocketNode::socket_nodes) {
+    for (auto socket_node : SocketNode::ipv4_socket_nodes) {
+        socket_node.second->to_cypher(buf, BUF_SIZE);
+        output_node(socket_node.second, buf);
+    }
+    for (auto socket_node : SocketNode::unix_socket_nodes) {
         socket_node.second->to_cypher(buf, BUF_SIZE);
         output_node(socket_node.second, buf);
     }
@@ -733,7 +743,7 @@ int Repository::delete_all() {
     }
     show_memory("delete file node");
 
-    for (auto socket_node : SocketNode::socket_nodes) {
+    for (auto socket_node : SocketNode::ipv4_socket_nodes) {
         delete socket_node.second;
     }
     show_memory("delete socket node");
@@ -764,7 +774,7 @@ int Repository::delete_all() {
     FileNode::file_nodes.swap(file_map);
     show_memory("clear file_nodes");
 
-    SocketNode::socket_nodes.clear();
+    SocketNode::ipv4_socket_nodes.clear();
     PipeNode::pipe_nodes.clear();
     show_memory("clear other nodes");
 
@@ -782,13 +792,13 @@ int Repository::swap_map() {
     FileNode::file_nodes.swap(files);
     PipeNode::pipe_nodes.swap(pipes);
     ProcessNode::process_nodes.swap(processes);
-    SocketNode::socket_nodes.swap(sockets);
+    SocketNode::ipv4_socket_nodes.swap(sockets);
 
     Edge::edges = std::move(edges);
     FileNode::file_nodes = std::move(files);
     PipeNode::pipe_nodes = std::move(pipes);
     ProcessNode::process_nodes = std::move(processes);
-    SocketNode::socket_nodes = std::move(sockets);
+    SocketNode::ipv4_socket_nodes = std::move(sockets);
 
     malloc_trim(0);
     return 0;
