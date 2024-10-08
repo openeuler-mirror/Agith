@@ -299,4 +299,52 @@ Json::Value get_docker_list() {
     return docker_list;
 }
 
+// 通过 lsof 获取服务名称（通过端口号）
+std::string get_service_name_by_port(int port) {
+    std::string command = "lsof -i :" + std::to_string(port) + " | awk 'NR==2{print $1}'"; // 获取第一个服务名
+    std::array<char, 128> buffer;
+    std::string result;
+    
+    // 使用 popen 执行命令
+    std::shared_ptr<FILE> pipe(popen(command.c_str(), "r"), pclose);
+    if (!pipe) {
+        throw std::runtime_error("popen() failed!");
+    }
+    
+    // 读取命令输出
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+        result += buffer.data();
+    }
+    
+    // 移除结尾的换行符
+    if (!result.empty() && result.back() == '\n') {
+        result.pop_back();
+    }
 
+    return result;
+}
+
+// 通过 Unix 套接字地址获取服务名称
+std::string get_service_name_by_unix_socket(const std::string& socket_path) {
+    std::string command = "lsof " + socket_path + " | awk 'NR==2{print $1}'"; // 获取第一个服务名
+    std::array<char, 128> buffer;
+    std::string result;
+    
+    // 使用 popen 执行命令
+    std::shared_ptr<FILE> pipe(popen(command.c_str(), "r"), pclose);
+    if (!pipe) {
+        throw std::runtime_error("popen() failed!");
+    }
+    
+    // 读取命令输出
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+        result += buffer.data();
+    }
+    
+    // 移除结尾的换行符
+    if (!result.empty() && result.back() == '\n') {
+        result.pop_back();
+    }
+
+    return result;
+}
