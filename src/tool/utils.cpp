@@ -19,7 +19,7 @@
 const char* help_info =
     "Agith help infomation:\n"
     "\t-p: PID, monitor process\n"
-    "\t-c: configure file path, default as /usr/local/Agith/config/agith.config\n"
+    "\t-c: configure file path, default as /usr/lib/agith/config/agith.config\n"
     "\t-q: quit, stop Agith service\n";
 
 void parse_opt(int argn, char** argv, unsigned int* p_tgid, char* filepath, int bufsize, int *stop) {
@@ -28,7 +28,7 @@ void parse_opt(int argn, char** argv, unsigned int* p_tgid, char* filepath, int 
 
     // set default value
     *p_tgid = 0;
-    snprintf(filepath, bufsize, "%s", "/usr/local/Agith/config/agith.config");
+    snprintf(filepath, bufsize, "%s", "/usr/lib/agith/config/agith.config");
     *stop = 0;
 
     while ((opt = getopt(argn, argv, optstring)) != -1) {
