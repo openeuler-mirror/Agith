@@ -110,7 +110,7 @@ function build_rpm()
 
     # copy executive file to rpmbuild/BUILD
     cd $shell_dir
-    tar -czf Agith-0.1.tar.gz config include src build.sh
+    tar -czf Agith-0.1.tar.gz config include src build.sh CMakeLists.txt CmakeScripts ssh.sh
     mv Agith-0.1.tar.gz $rpm_dir/SOURCES
     cp $shell_dir/config/agith.spec $rpm_dir/SPECS/
 
