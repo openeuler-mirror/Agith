@@ -24,6 +24,7 @@ cd %{_builddir}
 ./build.sh compile
 
 %install
+mkdir -p %{buildroot}/tmp/log/Agith
 mkdir -p %{buildroot}/usr/lib/agith/
 mkdir -p %{buildroot}/usr/lib/agith/output
 cp ssh.sh %{buildroot}/usr/lib/agith/

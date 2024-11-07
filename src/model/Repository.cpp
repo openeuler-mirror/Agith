@@ -445,8 +445,10 @@ int Repository::add_root_pid(unsigned int root_pid) {
     // 初始化输出文件地址，不含后缀
     log_info("add root processs:%d", root_pid);
     now = time(0);
+    std::string username =get_username_by_pid(root_pid);
     strftime(now_str, PATH_MAX, "%Y-%m-%d_%H-%M-%S", localtime(&now));
-    snprintf(path, PATH_MAX, "%s/%s.cypher", m_config["output_dir"].asString().c_str(), now_str);
+    snprintf(path, PATH_MAX, "%s/%s-%s.cypher", m_config["output_dir"].asString().c_str(), now_str,username.c_str());
+
 
     m_cypher_file_path.push_back(path);
     m_cypher_file.push_back(new std::ofstream(path, std::ios::out));
@@ -455,7 +457,7 @@ int Repository::add_root_pid(unsigned int root_pid) {
         return -1;
     }
 
-    snprintf(path, PATH_MAX, "%s/%s.cypher.bak", m_config["output_dir"].asString().c_str(), now_str);
+    snprintf(path, PATH_MAX, "%s/%s-%s.cypher.bak", m_config["output_dir"].asString().c_str(), now_str,username.c_str());
     m_cypher_file_bak.push_back(new std::ofstream(path, std::ios::out));
     if (!m_cypher_file_bak.back()->is_open()) {
         log_error("can't open file %s", path);

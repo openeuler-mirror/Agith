@@ -14,12 +14,12 @@
 #include "graph/ServiceNode.h"
 #include <curl/curl.h>
 #include <iostream>
-
+#include <pwd.h>
 
 const char* help_info =
     "Agith help infomation:\n"
     "\t-p: PID, monitor process\n"
-    "\t-c: configure file path, default as /usr/lib/agith/config/agith.config\n"
+    "\t-c: configure file path, default as /usr/lib/agith/config/agith_rpm.config\n"
     "\t-q: quit, stop Agith service\n";
 
 void parse_opt(int argn, char** argv, unsigned int* p_tgid, char* filepath, int bufsize, int *stop) {
@@ -28,7 +28,7 @@ void parse_opt(int argn, char** argv, unsigned int* p_tgid, char* filepath, int 
 
     // set default value
     *p_tgid = 0;
-    snprintf(filepath, bufsize, "%s", "/usr/lib/agith/config/agith.config");
+    snprintf(filepath, bufsize, "%s", "/usr/lib/agith/config/agith_rpm.config");
     *stop = 0;
 
     while ((opt = getopt(argn, argv, optstring)) != -1) {
@@ -347,4 +347,37 @@ std::string get_service_name_by_unix_socket(const std::string& socket_path) {
     }
 
     return result;
+}
+
+// 通过pid获取对应的用户名
+std::string get_username_by_pid(pid_t pid) {
+    // 打开 /proc/<pid>/status 文件
+    std::ifstream statusFile("/proc/" + std::to_string(pid) + "/status");
+    if (!statusFile.is_open()) {
+        std::cerr << "Unable to open /proc/" << pid << "/status" << std::endl;
+        return "Unknown";
+    }
+
+    std::string line;
+    uid_t uid = 0;
+    
+    // 查找 Uid 行并提取 UID
+    while (std::getline(statusFile, line)) {
+        if (line.find("Uid:") == 0) {
+            std::stringstream ss(line);
+            std::string word;
+            ss >> word >> uid;  // 读取 UID
+            break;
+        }
+    }
+
+    statusFile.close();
+
+    // 根据 UID 获取用户名
+    struct passwd *pw = getpwuid(uid);
+    if (pw) {
+        return pw->pw_name;
+    } else {
+        return "Unknown";
+    }
 }
