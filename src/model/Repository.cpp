@@ -164,7 +164,7 @@ int Repository::fill_graph(struct Trace* trace) {
             }
 
             // 检测systemd命令
-            if (cmds.size() > 0 && strcmp(cmds[0].c_str(), "/usr/bin/systemctl") == 0) {
+            if (cmds.size() > 2 && strcmp(cmds[0].c_str(), "/usr/bin/systemctl") == 0) {
                 const char* operation = cmds[1].c_str();
                 const char* serviceName = cmds[2].c_str();
                 if (ServiceNode::have(serviceName)) {
@@ -176,7 +176,7 @@ int Repository::fill_graph(struct Trace* trace) {
                 Edge::add_edge(pnode, snode, trace->action, operation);
             }
             // 检测docker命令
-            else if (cmds.size() > 0 && strcmp(cmds[0].c_str(), "/usr/bin/docker") == 0) {
+            else if (cmds.size() > 2 && strcmp(cmds[0].c_str(), "/usr/bin/docker") == 0) {
                 
                 const char* operation = cmds[1].c_str();
                 if (strcmp(operation, "start") == 0 || strcmp(operation, "stop") == 0 ||
@@ -445,8 +445,10 @@ int Repository::add_root_pid(unsigned int root_pid) {
     // 初始化输出文件地址，不含后缀
     log_info("add root processs:%d", root_pid);
     now = time(0);
+    std::string username =get_username_by_pid(root_pid);
     strftime(now_str, PATH_MAX, "%Y-%m-%d_%H-%M-%S", localtime(&now));
-    snprintf(path, PATH_MAX, "%s/%s.cypher", m_config["output_dir"].asString().c_str(), now_str);
+    snprintf(path, PATH_MAX, "%s/%s-%s.cypher", m_config["output_dir"].asString().c_str(), now_str,username.c_str());
+
 
     m_cypher_file_path.push_back(path);
     m_cypher_file.push_back(new std::ofstream(path, std::ios::out));
@@ -455,7 +457,7 @@ int Repository::add_root_pid(unsigned int root_pid) {
         return -1;
     }
 
-    snprintf(path, PATH_MAX, "%s/%s.cypher.bak", m_config["output_dir"].asString().c_str(), now_str);
+    snprintf(path, PATH_MAX, "%s/%s-%s.cypher.bak", m_config["output_dir"].asString().c_str(), now_str,username.c_str());
     m_cypher_file_bak.push_back(new std::ofstream(path, std::ios::out));
     if (!m_cypher_file_bak.back()->is_open()) {
         log_error("can't open file %s", path);

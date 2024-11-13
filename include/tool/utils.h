@@ -21,4 +21,5 @@ int delete_node(Node* node);
 Json::Value get_docker_list();
 std::string get_service_name_by_port(int port);
 std::string get_service_name_by_unix_socket(const std::string& socket_path);
+std::string get_username_by_pid(pid_t pid);
 #endif
