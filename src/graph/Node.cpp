@@ -19,6 +19,9 @@ void Node::set_file_id(std::set<unsigned int> *file_id) {
         m_file_id.insert(*it);
     }
 }
+void Node::clear_file_id() {
+    m_file_id.clear();
+}
 
 std::set<unsigned int>* Node::get_file_id() {
     return &m_file_id;

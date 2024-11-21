@@ -432,14 +432,25 @@ int Repository::add_root_pid(unsigned int root_pid) {
     time_t now;
     char now_str[PATH_MAX];
     char path[PATH_MAX];
-    if (ProcessNode::have(root_pid)) {
-        log_error("Process %d has existed", root_pid);
-        return -1;
+    // if (ProcessNode::have(root_pid)) {
+    //     log_error("Process %d has existed", root_pid);
+    //     return -1;
+    // }
+
+    // ProcessNode* pnode = new ProcessNode(root_pid);
+    // ProcessNode::process_nodes[root_pid] = pnode;
+
+    ProcessNode* pnode = NULL;
+    if (ProcessNode::have(root_pid))        
+    {   
+        //如果被监控到过，说明访问过n被监控的文件，删除其file_id,写入到新的文件里面。
+        pnode = ProcessNode::process_nodes[root_pid];
+        pnode->clear_file_id();
+    }else{
+        pnode = new ProcessNode(root_pid);
+        ProcessNode::process_nodes[root_pid] = pnode;
     }
-
-    ProcessNode* pnode = new ProcessNode(root_pid);
-    ProcessNode::process_nodes[root_pid] = pnode;
-
+    
     m_root_graph_id.push_back(pnode->get_graph_id());
 
     // 初始化输出文件地址，不含后缀
