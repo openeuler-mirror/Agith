@@ -25,6 +25,7 @@ cd %{_builddir}
 
 %install
 mkdir -p %{buildroot}/usr/lib/agith/
+touch %{buildroot}/usr/lib/agith/output.log
 cp ssh.sh %{buildroot}/usr/lib/agith/
 cd %{_builddir}/build
 cp prod/agith %{buildroot}/usr/lib/agith/
@@ -35,18 +36,19 @@ cp -a prod/config %{buildroot}/usr/lib/agith/
 
 
 %pre
-#if [ -f /etc/ssh/sshd_config ]; then
-#  if ! grep -q "^ForceCommand /usr/lib/agith/ssh.sh" /etc/ssh/sshd_config; then
-#    echo "ForceCommand /usr/lib/agith/ssh.sh" >> /etc/ssh/sshd_config
-#  fi
-#fi
-#if systemctl is-active sshd >/dev/null 2>&1; then
-#  systemctl reload sshd
-#fi
+if [ -f /etc/ssh/sshd_config ]; then
+  if ! grep -q "^ForceCommand /usr/lib/agith/ssh.sh" /etc/ssh/sshd_config; then
+    echo "ForceCommand /usr/lib/agith/ssh.sh" >> /etc/ssh/sshd_config
+  fi
+fi
+if systemctl is-active sshd >/dev/null 2>&1; then
+  systemctl reload sshd
+fi
 
 %post
 ln -s /usr/lib/agith/agith /bin/agith
 chmod +x /usr/lib/agith/ssh.sh
+chmod 666 /usr/lib/agith/output.log
 mkdir -p /tmp/log/Agith
 
 # %preun
@@ -57,12 +59,12 @@ rm -rf /usr/lib/agith
 rm -rf /tmp/log/Agith
 
 # 删除增加的sshd配置
-#if [ -f /etc/ssh/sshd_config ]; then
-#  sed -i '/^ForceCommand \/usr\/lib\/agith\/ssh.sh/d' /etc/ssh/sshd_config
-#fi
-#if systemctl is-active sshd >/dev/null 2>&1; then
-#  systemctl reload sshd
-#fi
+if [ -f /etc/ssh/sshd_config ]; then
+  sed -i '/^ForceCommand \/usr\/lib\/agith\/ssh.sh/d' /etc/ssh/sshd_config
+fi
+if systemctl is-active sshd >/dev/null 2>&1; then
+  systemctl reload sshd
+fi
 
 %clean
 rm -rf %{_builddir}/*
