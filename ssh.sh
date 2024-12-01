@@ -6,7 +6,7 @@ if [[ "$SSH_ORIGINAL_COMMAND" =~ ^scp.* || "$SSH_ORIGINAL_COMMAND" =~ sftp.* ]];
     exec $SSH_ORIGINAL_COMMAND
 else
     # 启动 Agith
-    sudo bash -c "nohup agith -p $$ &> /usr/lib/agith/output.log &"
+    sudo bash -c "setsid agith -p $$ &> /usr/lib/agith/output.log &"
     # 手动加载 /etc/profile
     source /etc/profile
     # 启动新的 shell
