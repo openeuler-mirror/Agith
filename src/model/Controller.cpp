@@ -72,7 +72,7 @@ int Controller::set_pid_target(pid_t pid) {
         log_error("Can't find map %s", PID_TARGET_MAP);
         return ENOENT;
     }
-
+    sleep(1);
     ret = bpf_map_update_elem(map_fd, &pid, &pid, BPF_NOEXIST);
     if (ret) {
         log_error("write initial aim failed, %s", strerror(errno));
