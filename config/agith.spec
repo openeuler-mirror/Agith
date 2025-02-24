@@ -56,7 +56,7 @@ mkdir -p /tmp/log/Agith
 %postun
 rm -rf /bin/agith
 rm -rf /usr/lib/agith
-rm -rf /tmp/log/Agith
+#rm -rf /tmp/log/Agith
 
 # 删除增加的sshd配置
 if [ -f /etc/ssh/sshd_config ]; then
