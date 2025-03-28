@@ -3,6 +3,7 @@
 #include "maps.h"
 #include "utils.h"
 
+
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
 SEC("tracepoint/syscalls/sys_enter_connect")
@@ -27,8 +28,13 @@ int trace_enter_connect(struct sys_enter_connect_args* ctx) {
     tr->action = ctx->syscall_nr;
     tr->ts = bpf_ktime_get_ns();
     tr->obj.ops_connect.fd = ctx->fd;
+    // 先取出sa_family 根据sa_family 判断到底是保存字符串/var/run/docker.sock 还是 addr
+    struct sockaddr addr = {};
+    bpf_probe_read_user(&addr, sizeof(addr), (void *)ctx->addr);
+    if (addr.sa_family == 1) {
+        set_str1(trace_ptr, ctx->addr->sa_data);
+    }
     bpf_probe_read(&(tr->obj.ops_connect.addr), sizeof(struct sockaddr), ctx->addr);
-
     set_trace_map_key(pid, ctx->syscall_nr, trace_ptr);
     return 0;
 }

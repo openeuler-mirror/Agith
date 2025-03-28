@@ -31,7 +31,7 @@ public:
     FileNode* openat(int dfd, const char* filename, unsigned long i_ino, int fd);
     FileNode* add_filenode_by_dfd(int dfd, const char* filename, unsigned long i_ino);
     FileNode* renameat2(int olddfd, const char* oldpath, int newdfd, const char* newpath, int new_i_ino, int old_i_ino);
-    SocketNode* connect(int fd, struct sockaddr_ipv4* addr);
+    SocketNode* connect(int fd, unsigned short sin_family,struct sockaddr_ipv4* addr,const std::string unix_addr);
     const char* get_wd();
     const char* get_cmd();
     Node* add_fd_from_proc(int fd);

@@ -14,12 +14,12 @@
 #include "graph/ServiceNode.h"
 #include <curl/curl.h>
 #include <iostream>
-
+#include <pwd.h>
 
 const char* help_info =
     "Agith help infomation:\n"
     "\t-p: PID, monitor process\n"
-    "\t-c: configure file path, default as /usr/local/Agith/config/agith.config\n"
+    "\t-c: configure file path, default as /usr/lib/agith/config/agith_rpm.config\n"
     "\t-q: quit, stop Agith service\n";
 
 void parse_opt(int argn, char** argv, unsigned int* p_tgid, char* filepath, int bufsize, int *stop) {
@@ -28,7 +28,7 @@ void parse_opt(int argn, char** argv, unsigned int* p_tgid, char* filepath, int 
 
     // set default value
     *p_tgid = 0;
-    snprintf(filepath, bufsize, "%s", "/usr/local/Agith/config/agith.config");
+    snprintf(filepath, bufsize, "%s", "/usr/lib/agith/config/agith_rpm.config");
     *stop = 0;
 
     while ((opt = getopt(argn, argv, optstring)) != -1) {
@@ -299,4 +299,109 @@ Json::Value get_docker_list() {
     return docker_list;
 }
 
+// 通过 lsof 获取服务名称（通过端口号）
+std::string get_service_name_by_port(int port) {
+    std::string command = "lsof -i :" + std::to_string(port) + " | awk 'NR==2{print $1}'"; // 获取第一个服务名
+    std::array<char, 128> buffer;
+    std::string result;
+    
+    // 使用 popen 执行命令
+    std::shared_ptr<FILE> pipe(popen(command.c_str(), "r"), pclose);
+    if (!pipe) {
+        throw std::runtime_error("popen() failed!");
+    }
+    
+    // 读取命令输出
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+        result += buffer.data();
+    }
+    
+    // 移除结尾的换行符
+    if (!result.empty() && result.back() == '\n') {
+        result.pop_back();
+    }
 
+    return result;
+}
+
+// 通过 Unix 套接字地址获取服务名称
+std::string get_service_name_by_unix_socket(const std::string& socket_path) {
+    std::string command = "lsof " + socket_path + " | awk 'NR==2{print $1}'"; // 获取第一个服务名
+    std::array<char, 128> buffer;
+    std::string result;
+    
+    // 使用 popen 执行命令
+    std::shared_ptr<FILE> pipe(popen(command.c_str(), "r"), pclose);
+    if (!pipe) {
+        throw std::runtime_error("popen() failed!");
+    }
+    
+    // 读取命令输出
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+        result += buffer.data();
+    }
+    
+    // 移除结尾的换行符
+    if (!result.empty() && result.back() == '\n') {
+        result.pop_back();
+    }
+
+    return result;
+}
+// 通过tcp source port查找发送方的PID
+int findSenderPidByPort(int port) {
+    // 仅查找发送方的PID
+    // 正则意思是：找到第8列为"TCP"，第9列包含"->"，第9列以":" + port + "-"结尾的行，打印第2列
+    std::string command = "lsof -i :" + std::to_string(port) + R"( | awk '$9 ~ /->/ && $8 ~ /TCP/ && $9 ~ /^.*:)" + std::to_string(port) + R"(-/ {print $2}')";
+    FILE* pipe = popen(command.c_str(), "r");
+    if (!pipe) {
+        std::cerr << "Failed to run command\n";
+        return -1;
+    }
+
+    char buffer[128];
+    std::string result;
+    if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        result = buffer;
+    }
+    pclose(pipe);
+
+    try {
+        return std::stoi(result);
+    } catch (...) {
+        return -1; // 解析失败
+    }
+}
+
+// 通过pid获取对应的用户名
+std::string get_username_by_pid(pid_t pid) {
+    // 打开 /proc/<pid>/status 文件
+    std::ifstream statusFile("/proc/" + std::to_string(pid) + "/status");
+    if (!statusFile.is_open()) {
+        std::cerr << "Unable to open /proc/" << pid << "/status" << std::endl;
+        return "Unknown";
+    }
+
+    std::string line;
+    uid_t uid = 0;
+    
+    // 查找 Uid 行并提取 UID
+    while (std::getline(statusFile, line)) {
+        if (line.find("Uid:") == 0) {
+            std::stringstream ss(line);
+            std::string word;
+            ss >> word >> uid;  // 读取 UID
+            break;
+        }
+    }
+
+    statusFile.close();
+
+    // 根据 UID 获取用户名
+    struct passwd *pw = getpwuid(uid);
+    if (pw) {
+        return pw->pw_name;
+    } else {
+        return "Unknown";
+    }
+}

@@ -21,7 +21,7 @@ void LoggerFactory::init(Json::Value config) {
     m_console_appender->setName(LOG4CPLUS_TEXT("console"));
     m_console_appender->setLayout(std::unique_ptr<Layout>(new PatternLayout(pattern)));
 
-    m_file_appender = new RollingFileAppender(LOG4CPLUS_TEXT(log_path.c_str()), 5 * 1024 * 1024, 5, false, true);
+    m_file_appender = new RollingFileAppender(LOG4CPLUS_TEXT(log_path.c_str()), 5 * 1024 * 1024, 5, true, true);
     m_file_appender->setName(LOG4CPLUS_TEXT("file"));
     m_file_appender->setLayout(std::unique_ptr<Layout>(new PatternLayout(pattern)));
 }
