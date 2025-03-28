@@ -971,7 +971,6 @@ void Repository::handle_sql(__u32 port,__u8 *value){
     for (int i = 7; i < 7 + len && value[i] != 0; i++) {
         sql_query += static_cast<char>(value[i]);
     }
-    std::cout<<sql_query<<std::endl;
     ProcessNode* pnode = ProcessNode::process_nodes[pid];
     if (pnode == nullptr)
     {
