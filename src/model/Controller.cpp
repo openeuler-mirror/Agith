@@ -18,6 +18,7 @@
 #include "graph/PipeNode.h"
 #include "graph/ProcessNode.h"
 #include "tool/MessageQueue.h"
+#include <iostream>
 
 static std::shared_ptr<Controller> m_controller = nullptr;
 static std::once_flag create_flag;
@@ -206,14 +207,13 @@ int Controller::init(Json::Value config) {
         log_error("initialize consumer module failed!");
         return ret;
     }
-
+    
     log_info("Load eBPF Probe...");
     ret = m_bpf_loader.load_all_prog();
     if (ret) {
         log_error("load probe failed!");
         return ret;
     }
-
     return 0;
 }
 
@@ -239,8 +239,8 @@ int Controller::init_consumer() {
     int trace_ptr_fd = m_bpf_loader.get_map_fd(TRACE_PTR_MAP);
     int str1_fd = m_bpf_loader.get_map_fd(STR1_MAP);
     int str2_fd = m_bpf_loader.get_map_fd(STR2_MAP);
-
-    if (Consumer::get_consumer()->init(trace_fd, trace_ptr_fd, str1_fd, str2_fd)) {
+    int sql_fd = m_bpf_loader.get_map_fd(SQL_MAP);
+    if (Consumer::get_consumer()->init(trace_fd, trace_ptr_fd, str1_fd, str2_fd,sql_fd)) {
         return -1;
     }
 

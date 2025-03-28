@@ -23,6 +23,7 @@ public:
     void set_signal(unsigned int signal);
     void clear_signal(unsigned int signal);
     void handle_docker(std::vector<std::string> containers, pid_t tgid, int syscall_id, const std::string& operation);
+    void handle_sql(__u32 key,__u8* value);
     std::vector<std::string> extractContainerNames(const std::string& cmd, const std::string& operation);
 
 private:
