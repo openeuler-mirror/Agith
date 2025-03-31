@@ -34,6 +34,9 @@ struct cmd_args {
     char cmd_str[MAX_ARG_LENGTH];
 };
 
+struct sql_args {
+    u8 sql_str[128];
+};
 struct {
     __uint(type, BPF_MAP_TYPE_ARRAY);
     __uint(max_entries, CPU_NUM * ENTRY_NUM_PER_CPU);
@@ -97,5 +100,11 @@ struct {
     __type(value, unsigned int);
 } perf_event_map SEC(".maps");
 
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(max_entries, 100);
+    __type(key,u32);
+    __type(value, struct sql_args);
+} sql_map SEC(".maps");
 
 #endif

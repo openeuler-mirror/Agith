@@ -10,10 +10,11 @@
 class ServiceNode : public Node {
 public:
     enum ServiceType {
-    // 1 systemd服务、2 module服务、3 docker服务
+    // 1 systemd服务、2 module服务、3 docker服务、4 sql服务
         SYSTEMD_SERVICE = 1,
         MODULE_SERVICE,
-        DOCKER_SERVICE
+        DOCKER_SERVICE,
+        SQL_SERVICE
     };
 
     static bool have(std::string service_name);

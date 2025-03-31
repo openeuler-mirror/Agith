@@ -348,6 +348,30 @@ std::string get_service_name_by_unix_socket(const std::string& socket_path) {
 
     return result;
 }
+// 通过tcp source port查找发送方的PID
+int findSenderPidByPort(int port) {
+    // 仅查找发送方的PID
+    // 正则意思是：找到第8列为"TCP"，第9列包含"->"，第9列以":" + port + "-"结尾的行，打印第2列
+    std::string command = "lsof -i :" + std::to_string(port) + R"( | awk '$9 ~ /->/ && $8 ~ /TCP/ && $9 ~ /^.*:)" + std::to_string(port) + R"(-/ {print $2}')";
+    FILE* pipe = popen(command.c_str(), "r");
+    if (!pipe) {
+        std::cerr << "Failed to run command\n";
+        return -1;
+    }
+
+    char buffer[128];
+    std::string result;
+    if (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        result = buffer;
+    }
+    pclose(pipe);
+
+    try {
+        return std::stoi(result);
+    } catch (...) {
+        return -1; // 解析失败
+    }
+}
 
 // 通过pid获取对应的用户名
 std::string get_username_by_pid(pid_t pid) {

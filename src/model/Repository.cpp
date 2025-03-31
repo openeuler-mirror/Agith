@@ -432,14 +432,25 @@ int Repository::add_root_pid(unsigned int root_pid) {
     time_t now;
     char now_str[PATH_MAX];
     char path[PATH_MAX];
-    if (ProcessNode::have(root_pid)) {
-        log_error("Process %d has existed", root_pid);
-        return -1;
+    // if (ProcessNode::have(root_pid)) {
+    //     log_error("Process %d has existed", root_pid);
+    //     return -1;
+    // }
+
+    // ProcessNode* pnode = new ProcessNode(root_pid);
+    // ProcessNode::process_nodes[root_pid] = pnode;
+
+    ProcessNode* pnode = NULL;
+    if (ProcessNode::have(root_pid))        
+    {   
+        //如果被监控到过，说明访问过n被监控的文件，删除其file_id,写入到新的文件里面。
+        pnode = ProcessNode::process_nodes[root_pid];
+        pnode->clear_file_id();
+    }else{
+        pnode = new ProcessNode(root_pid);
+        ProcessNode::process_nodes[root_pid] = pnode;
     }
-
-    ProcessNode* pnode = new ProcessNode(root_pid);
-    ProcessNode::process_nodes[root_pid] = pnode;
-
+    
     m_root_graph_id.push_back(pnode->get_graph_id());
 
     // 初始化输出文件地址，不含后缀
@@ -948,4 +959,32 @@ void Repository::handle_docker(std::vector<std::string> containers, pid_t tgid, 
         }
         Edge::add_edge(pnode, snode, syscall_id, operation.c_str());
     }
+}
+void Repository::handle_sql(__u32 port,__u8 *value){
+
+    int len = value[0] -3;
+
+    int pid = findSenderPidByPort(port);
+    //printf("type: %u, Pid: %u, Value: %d\n",value[4], pid, len);
+    // 从索引7开始提取SQL字符串
+    std::string sql_query;
+    for (int i = 7; i < 7 + len && value[i] != 0; i++) {
+        sql_query += static_cast<char>(value[i]);
+    }
+    ProcessNode* pnode = ProcessNode::process_nodes[pid];
+    if (pnode == nullptr)
+    {
+        return;
+    }
+    ServiceNode* snode = new ServiceNode(sql_query,ServiceNode::ServiceType::SQL_SERVICE);
+    ServiceNode::service_nodes[sql_query] = snode;
+    Edge::add_edge(pnode, snode, 0, "SQL");
+    // std::cout<<pnode->get_pid()<<std::endl;
+    // std::cout<<pnode->get_cmd()<<std::endl;
+    // 获取发送SQL查询的进程节点
+    // if (!ProcessNode::have(pid)) {
+    //     log_warn("Cannot find process with PID %d for SQL query", pid);
+    //     return;
+    // }
+
 }

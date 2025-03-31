@@ -25,6 +25,7 @@ cd %{_builddir}
 
 %install
 mkdir -p %{buildroot}/usr/lib/agith/
+touch %{buildroot}/usr/lib/agith/output.log
 cp ssh.sh %{buildroot}/usr/lib/agith/
 cd %{_builddir}/build
 cp prod/agith %{buildroot}/usr/lib/agith/
@@ -47,6 +48,7 @@ fi
 %post
 ln -s /usr/lib/agith/agith /bin/agith
 chmod +x /usr/lib/agith/ssh.sh
+chmod 666 /usr/lib/agith/output.log
 mkdir -p /tmp/log/Agith
 
 # %preun
@@ -54,7 +56,7 @@ mkdir -p /tmp/log/Agith
 %postun
 rm -rf /bin/agith
 rm -rf /usr/lib/agith
-rm -rf /tmp/log/Agith
+#rm -rf /tmp/log/Agith
 
 # 删除增加的sshd配置
 if [ -f /etc/ssh/sshd_config ]; then
