@@ -20,6 +20,7 @@ public:
 
 private:
     int load_prog(const char* file_path);
+    int load_tc_prog(const char* file_path);
     int reuse_map_fd(struct bpf_object* prog_obj);
 
     std::string m_map_file_path;

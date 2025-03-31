@@ -20,7 +20,7 @@ Consumer::Consumer() {
 }
 
 // int Consumer::init(BPFMap *trace_map, BPFMap *trace_ptr_map)
-int Consumer::init(int trace_fd, int trace_ptr_fd, int str1_fd, int str2_fd) {
+int Consumer::init(int trace_fd, int trace_ptr_fd, int str1_fd, int str2_fd,int sql_fd) {
     if (trace_fd <= 0 || trace_ptr_fd <= 0 || str1_fd <= 0 || str2_fd <= 0) {
         log_error("map fd is less than 0, please check");
         return -1;
@@ -29,6 +29,7 @@ int Consumer::init(int trace_fd, int trace_ptr_fd, int str1_fd, int str2_fd) {
     m_trace_ptr_map_fd = trace_ptr_fd;
     m_str1_map_fd = str1_fd;
     m_str2_map_fd = str2_fd;
+    m_sql_map_fd = sql_fd;
     return 0;
 }
 
@@ -88,6 +89,7 @@ int Consumer::fill_trace(struct Trace* trace, int* index) {
         case SYS_writev:
         case SYS_delete_module:
         case SYS_finit_module:
+        case SYS_connect:
             // 不要对返回值判断，即使data为null也要添加，否则会引发异常
             bpf_map_lookup_elem(m_str1_map_fd, index, data);
             trace->str_data.push_back(data);
@@ -204,6 +206,16 @@ int Consumer::read_trace_map() {
             fill_trace(trace, &index);
             m_trace_buf.push(trace);
             m_last_ptr[i] += 1;
+        }
+    __u32 key;
+    __u8 value[128];
+
+    if (bpf_map_get_next_key(m_sql_map_fd, NULL, &key) == 0) {
+            if (bpf_map_lookup_elem(m_sql_map_fd, &key, value) == 0) {
+                __u16 port = key >> 16;
+                Repository::get_repository()->handle_sql(port, value);
+                bpf_map_delete_elem(m_sql_map_fd, &key);
+            } 
         }
     }
     return 0;

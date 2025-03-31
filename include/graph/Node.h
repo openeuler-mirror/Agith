@@ -29,7 +29,7 @@ public:
     void set_file_id(int file_id);
     void set_file_id(std::set<unsigned int> *file_id);
     std::set<unsigned int>* get_file_id();
-
+    void clear_file_id();
 protected:
     static int g_graph_id;
     int m_graph_id;
