@@ -141,8 +141,9 @@ int trace_enter_sendto(struct sys_enter_sendto_args* ctx) {
     tr->ts = bpf_ktime_get_ns();
     tr->obj.ops_send.fd = ctx->fd;
     tr->obj.ops_send.len = ctx->len;
-    set_str1(trace_ptr, ctx->buff);
 
+    set_bytes(trace_ptr, ctx->buff);
+    
     set_trace_map_key(pid, ctx->syscall_nr, trace_ptr);
     return 0;
 }

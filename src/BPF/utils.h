@@ -100,7 +100,12 @@ static __always_inline long set_str2(unsigned int trace_ptr, const char* value) 
     if (buf == NULL) return -1;
     return bpf_probe_read_str(buf, STR_BUF_SIZE, value);
 }
-
+static __always_inline long set_bytes(unsigned int trace_ptr, const char* value) {
+    char* buf;
+    buf = bpf_map_lookup_elem(&str1_map, &trace_ptr);
+    if (buf == NULL) return -1;
+    return bpf_probe_read_user(buf, STR_BUF_SIZE, value);
+}
 
 static __always_inline int default_set_ret(struct sys_exit_args* ctx) {
     u64 tgid_pid;

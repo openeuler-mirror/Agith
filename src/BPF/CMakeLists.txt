@@ -5,7 +5,6 @@ list(APPEND BPF_SOURCES map.c)
 list(APPEND BPF_SOURCES process.c)
 list(APPEND BPF_SOURCES socket.c)
 list(APPEND BPF_SOURCES service.c)
-list(APPEND BPF_SOURCES tc.c)
 
 set(BPF_SOURCES ${BPF_SOURCES} PARENT_SCOPE)
 

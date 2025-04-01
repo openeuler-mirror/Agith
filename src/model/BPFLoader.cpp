@@ -69,19 +69,11 @@ int BPFLoader::load_map() {
 
 int BPFLoader::load_all_prog() {
     for (std::string prog_file_path : m_prog_file_path_list) {
-        // 判断tc.o则调用load_tc_prog
-        if(prog_file_path.substr(prog_file_path.find_last_of("/") + 1) == "tc.o"){
-            if(load_tc_prog(prog_file_path.c_str())){
-                log_error("load %s failed", prog_file_path.c_str());
-                return -1;
-            }
-        }else{
-            log_info("file name: %s", prog_file_path.c_str());
-            if (load_prog(prog_file_path.c_str())) {
-                log_error("load %s failed", prog_file_path.c_str());
-                return -1;
-            }  
-        }      
+        log_info("file name: %s", prog_file_path.c_str());
+        if (load_prog(prog_file_path.c_str())) {
+            log_error("load %s failed", prog_file_path.c_str());
+            return -1;
+        }       
     }
     return 0;
 }
@@ -118,75 +110,6 @@ int BPFLoader::load_prog(const char* file_path) {
         }
     }
 
-    m_prog_obj_list.push_back(obj);
-    return 0;
-}
-int BPFLoader::load_tc_prog(const char* file_path){    
-    struct bpf_object *obj;
-    struct bpf_program *prog;
-    int prog_fd, ifindex;
-    struct bpf_tc_hook hook = {};
-    struct bpf_tc_opts opts = {};
-    int ret;
-    // 1.打开bpf对象文件
-    obj = bpf_object__open_file(file_path, NULL);
-    if (IS_ERR(obj)) {
-        log_error("fail to open bpf prog %s", file_path);
-        return 0;
-    }
-    ret = reuse_map_fd(obj);
-    // 2.加载bpf程序
-    ret = bpf_object__load(obj);
-    if (ret) {
-        log_error("fail to load prog %s", file_path);
-        return 0;
-    }
-     // 3.查找 BPF 探针程序
-     prog = bpf_object__find_program_by_name(obj, "capture_packet");
-     if (!prog) {
-         fprintf(stderr, "Failed to find program\n");
-         return 0;
-     }
-     // 获取 eBPF 程序文件描述符
-    prog_fd = bpf_program__fd(prog);
-    if (prog_fd < 0) {
-        fprintf(stderr, "Failed to get program fd\n");
-        return 0;
-    }
-
-    // 获取网络设备索引
-    ifindex = if_nametoindex(IFACE);
-    if (!ifindex) {
-        perror("if_nametoindex");
-        return 0;
-    }
-    // 删除 clsact 队列
-    std::string cmd = "tc qdisc del dev " + std::string(IFACE) + " clsact";
-    if (system(cmd.c_str()) == 0) {
-        log_info("Successfully deleted clsact qdisc");
-    } 
-    // 绑定到 tc ingress
-    hook.sz = sizeof(hook); 
-    hook.ifindex = ifindex;
-    hook.attach_point = BPF_TC_EGRESS;
-    // if (bpf_tc_hook_destroy(&hook) == 0) {
-    //     log_info("Successfully destroyed existing tc hook");
-    // } else {
-    //     log_warn("No existing tc hook found or failed to destroy");
-    // }
-    if (bpf_tc_hook_create(&hook)) {
-        log_error("Failed to create tc hook\n");
-        return 0;
-    }
-    // memset(&opts, 0, sizeof(opts));
-    opts.sz = sizeof(opts);
-    opts.prog_fd = prog_fd;
-    opts.flags = BPF_TC_F_REPLACE;
-
-    if (bpf_tc_attach(&hook, &opts)) {
-        log_error("Failed to attach BPF program to tc\n");
-        return 0;
-    }
     m_prog_obj_list.push_back(obj);
     return 0;
 }
@@ -233,16 +156,4 @@ BPFLoader::~BPFLoader() {
         bpf_object__close(obj);
     }
     bpf_object__close(m_map_obj);
-
-    // 销毁 tc 钩子
-    struct bpf_tc_hook hook = {};
-    hook.sz = sizeof(hook);
-    hook.ifindex = if_nametoindex(IFACE);
-    hook.attach_point = BPF_TC_EGRESS;
-
-    if (bpf_tc_hook_destroy(&hook) == 0) {
-        log_info("Successfully destroyed tc hook");
-    } else {
-        log_warn("Failed to destroy tc hook or no existing tc hook found");
-    }
 }
