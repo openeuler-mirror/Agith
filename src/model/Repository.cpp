@@ -382,7 +382,6 @@ int Repository::fill_graph(struct Trace* trace) {
                 log_error("[sendto] local socket node is NULL, fd:%d", fd);
                 break;
             }
-            std::cout << (unsigned int)data[4] << std::endl;
             if (ntohs(socknode->get_sockaddr_ipv4().sin_port) == 3306){
                 if ( (unsigned int)data[4] != 3)
                 {
