@@ -23,6 +23,7 @@
 #include <regex>
 #include <future>
 #include <ctime>
+#include <arpa/inet.h>
 
 #define BUF_SIZE 40960
 #define DOCKER_TIME 5
@@ -374,13 +375,30 @@ int Repository::fill_graph(struct Trace* trace) {
         case SYS_sendto: {
             if (trace->ret == -1) break;
             fd = trace->obj.ops_send.fd;
-            data = trace->str_data[0].c_str();
+            data = trace->str_data[0].c_str();              
 
             socknode = (SocketNode*)pnode->get_node_by_fd(fd);
             if (socknode == NULL) {
                 log_error("[sendto] local socket node is NULL, fd:%d", fd);
                 break;
             }
+            if (ntohs(socknode->get_sockaddr_ipv4().sin_port) == 3306){
+                if ( (unsigned int)data[4] != 3)
+                {
+                    break;
+                }
+                
+                // 如果是mysql的端口，那么就是sql语句
+                size_t data_len = trace->obj.ops_send.len; 
+                // 拼接sql语句
+                std::string sql_query;
+                for (int i = 7; i < data_len && data[i] != 0; i++) {
+                    sql_query += static_cast<char>((unsigned int)(data[i]));
+                }
+                Edge::add_edge(pnode, socknode, SYS_sendto, sql_query.c_str());
+                break;
+            }
+            
             Edge::add_edge(pnode, socknode, SYS_sendto, data);
             break;
         }
@@ -959,32 +977,4 @@ void Repository::handle_docker(std::vector<std::string> containers, pid_t tgid, 
         }
         Edge::add_edge(pnode, snode, syscall_id, operation.c_str());
     }
-}
-void Repository::handle_sql(__u32 port,__u8 *value){
-
-    int len = value[0] -3;
-
-    int pid = findSenderPidByPort(port);
-    //printf("type: %u, Pid: %u, Value: %d\n",value[4], pid, len);
-    // 从索引7开始提取SQL字符串
-    std::string sql_query;
-    for (int i = 7; i < 7 + len && value[i] != 0; i++) {
-        sql_query += static_cast<char>(value[i]);
-    }
-    ProcessNode* pnode = ProcessNode::process_nodes[pid];
-    if (pnode == nullptr)
-    {
-        return;
-    }
-    ServiceNode* snode = new ServiceNode(sql_query,ServiceNode::ServiceType::SQL_SERVICE);
-    ServiceNode::service_nodes[sql_query] = snode;
-    Edge::add_edge(pnode, snode, 0, "SQL");
-    // std::cout<<pnode->get_pid()<<std::endl;
-    // std::cout<<pnode->get_cmd()<<std::endl;
-    // 获取发送SQL查询的进程节点
-    // if (!ProcessNode::have(pid)) {
-    //     log_warn("Cannot find process with PID %d for SQL query", pid);
-    //     return;
-    // }
-
 }

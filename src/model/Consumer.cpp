@@ -84,7 +84,6 @@ int Consumer::fill_trace(struct Trace* trace, int* index) {
         case SYS_unlinkat:
         case SYS_unlink:
         case SYS_recvfrom:
-        case SYS_sendto:
         case SYS_utimensat:
         case SYS_writev:
         case SYS_delete_module:
@@ -114,6 +113,10 @@ int Consumer::fill_trace(struct Trace* trace, int* index) {
             }
             break;
         }
+        case SYS_sendto:
+            bpf_map_lookup_elem(m_str1_map_fd, index, data);
+            trace->str_data.push_back(std::string(data, trace->obj.ops_send.len));
+            break;
 
         default:
             break;
@@ -206,16 +209,6 @@ int Consumer::read_trace_map() {
             fill_trace(trace, &index);
             m_trace_buf.push(trace);
             m_last_ptr[i] += 1;
-        }
-    __u32 key;
-    __u8 value[128];
-
-    if (bpf_map_get_next_key(m_sql_map_fd, NULL, &key) == 0) {
-            if (bpf_map_lookup_elem(m_sql_map_fd, &key, value) == 0) {
-                __u16 port = key >> 16;
-                Repository::get_repository()->handle_sql(port, value);
-                bpf_map_delete_elem(m_sql_map_fd, &key);
-            } 
         }
     }
     return 0;
